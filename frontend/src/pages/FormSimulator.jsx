@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import axios from "axios";
 import PassportForm from "@/components/PassportForm";
 import AIHelperPanel from "@/components/AIHelperPanel";
-import { Bot, FileText, Shield, HelpCircle, Download, Chrome, ExternalLink } from "lucide-react";
+import { Bot, FileText, Shield, Download, Chrome, ExternalLink } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -13,34 +13,50 @@ const FormSimulator = () => {
   const [aiResponse, setAiResponse] = useState(null);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [error, setError] = useState(null);
+  const lastRequestedField = useRef(null);
+  const debounceTimer = useRef(null);
 
-  const handleHelpClick = useCallback(async (fieldLabel, fieldType = "input") => {
-    setActiveField(fieldLabel);
-    setIsPanelVisible(true);
-    setIsLoading(true);
-    setError(null);
-    setAiResponse(null);
+  const handleFieldFocus = useCallback(async (fieldLabel, fieldType = "input") => {
+    // Debounce to avoid multiple rapid requests
+    clearTimeout(debounceTimer.current);
+    
+    debounceTimer.current = setTimeout(async () => {
+      // Skip if same field already has response
+      if (lastRequestedField.current === fieldLabel && aiResponse && !error) {
+        setActiveField(fieldLabel);
+        setIsPanelVisible(true);
+        return;
+      }
 
-    try {
-      const response = await axios.post(`${API}/form-help`, {
-        field_label: fieldLabel,
-        field_type: fieldType,
-        form_context: "Indian Passport Application Form"
-      });
-      setAiResponse(response.data);
-    } catch (err) {
-      console.error("Error fetching form help:", err);
-      setError("Unable to fetch guidance. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      setActiveField(fieldLabel);
+      setIsPanelVisible(true);
+      setIsLoading(true);
+      setError(null);
+      setAiResponse(null);
+      lastRequestedField.current = fieldLabel;
+
+      try {
+        const response = await axios.post(`${API}/form-help`, {
+          field_label: fieldLabel,
+          field_type: fieldType,
+          form_context: "Indian Passport Application Form"
+        });
+        setAiResponse(response.data);
+      } catch (err) {
+        console.error("Error fetching form help:", err);
+        setError("Unable to fetch guidance. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }, 400); // 400ms debounce
+  }, [aiResponse, error]);
 
   const handleClosePanel = useCallback(() => {
     setIsPanelVisible(false);
     setTimeout(() => {
       setActiveField(null);
       setAiResponse(null);
+      lastRequestedField.current = null;
     }, 300);
   }, []);
 
@@ -114,9 +130,8 @@ const FormSimulator = () => {
             <div>
               <h2 className="text-lg font-bold text-[#2c3e50] mb-1">Welcome to the Form Helper Demo</h2>
               <p className="text-slate-600 leading-relaxed">
-                Click the <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full text-sm font-medium text-slate-600"><HelpCircle className="w-3 h-3" />Need Help?</span> button 
-                next to any field to receive AI-powered guidance. The assistant will intelligently decide whether 
-                to ask you clarifying questions or provide direct advice.
+                Simply <strong>click on any form field</strong> below to receive AI-powered guidance. 
+                The assistant will intelligently decide whether to ask you clarifying questions or provide direct advice.
               </p>
             </div>
           </div>
@@ -128,7 +143,7 @@ const FormSimulator = () => {
           <div className={`transition-all duration-300 ease-out ${
             isPanelVisible ? 'w-full lg:w-[calc(100%-420px)]' : 'w-full'
           }`}>
-            <PassportForm onHelpClick={handleHelpClick} activeField={activeField} />
+            <PassportForm onFieldFocus={handleFieldFocus} activeField={activeField} />
           </div>
 
           {/* AI Panel */}
