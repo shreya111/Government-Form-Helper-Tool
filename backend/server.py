@@ -245,6 +245,18 @@ async def get_form_help_history(limit: int = 10):
     ).sort("timestamp", -1).to_list(limit)
     return history
 
+@api_router.get("/extension/download")
+async def download_extension():
+    """Download the Chrome extension as a zip file."""
+    extension_path = APP_DIR / "extension.zip"
+    if not extension_path.exists():
+        raise HTTPException(status_code=404, detail="Extension package not found")
+    return FileResponse(
+        path=str(extension_path),
+        filename="government-form-helper-extension.zip",
+        media_type="application/zip"
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
