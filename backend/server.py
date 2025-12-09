@@ -141,10 +141,14 @@ async def get_form_help(request: FormHelpRequest):
         
         user_prompt = f"""The user is filling an {request.form_context} and is currently focused on the field: '{request.field_label}' (field type: {request.field_type}).
 
-Provide helpful guidance for this specific field in the context of Indian government forms. Return ONLY a valid JSON object with these exact keys:
-- clarification_question
-- advice  
-- warning
+Provide helpful, INTERACTIVE guidance for this specific field. Create a clarification question with 2-4 clickable answer options that will help the user decide what to enter.
+
+Return ONLY a valid JSON object with these exact keys:
+- clarification_question (string)
+- question_options (array of objects with label, value, recommendation)
+- advice (string, max 25 words)
+- warning (string)
+- recommended_value (string or null)
 
 JSON response:"""
         
@@ -165,11 +169,23 @@ JSON response:"""
             
             parsed = json.loads(cleaned_response)
             
+            # Parse question options
+            question_options = []
+            if "question_options" in parsed and isinstance(parsed["question_options"], list):
+                for opt in parsed["question_options"]:
+                    question_options.append(QuestionOption(
+                        label=opt.get("label", ""),
+                        value=opt.get("value", ""),
+                        recommendation=opt.get("recommendation", "")
+                    ))
+            
             result = FormHelpResponse(
                 clarification_question=parsed.get("clarification_question", "How can I help you with this field?"),
+                question_options=question_options,
                 advice=parsed.get("advice", "Enter the required information accurately."),
                 warning=parsed.get("warning", "Double-check for any typos before submitting."),
-                field_label=request.field_label
+                field_label=request.field_label,
+                recommended_value=parsed.get("recommended_value")
             )
             
             # Save to history
@@ -186,12 +202,17 @@ JSON response:"""
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response: {response}, error: {e}")
-            # Return fallback response
+            # Return fallback response with default options
             return FormHelpResponse(
                 clarification_question="What information do you need help with for this field?",
+                question_options=[
+                    QuestionOption(label="I need general guidance", value="general", recommendation="Enter as per your official documents"),
+                    QuestionOption(label="I'm not sure what to enter", value="unsure", recommendation="Check your supporting documents")
+                ],
                 advice="Enter the required details as per your official documents.",
                 warning="Ensure accuracy to avoid application rejection.",
-                field_label=request.field_label
+                field_label=request.field_label,
+                recommended_value=None
             )
             
     except Exception as e:
