@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import PassportForm from "@/components/PassportForm";
 import AIHelperPanel from "@/components/AIHelperPanel";
-import { Bot, FileText, Shield, HelpCircle } from "lucide-react";
+import { Bot, FileText, Shield, HelpCircle, Download, Chrome, ExternalLink } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
