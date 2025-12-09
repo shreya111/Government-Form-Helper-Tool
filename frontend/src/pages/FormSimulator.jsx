@@ -67,6 +67,44 @@ const FormSimulator = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Chrome Extension Banner */}
+        <div className="bg-gradient-to-r from-[#2c3e50] to-[#34495e] rounded-xl p-6 mb-8 shadow-lg">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="bg-white/10 p-3 rounded-xl">
+                <Chrome className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white mb-1">Get the Chrome Extension</h2>
+                <p className="text-white/70 text-sm leading-relaxed max-w-xl">
+                  Use this helper directly on the <strong>Passport Seva portal</strong>. The extension works in real-time 
+                  as you fill the actual form at services1.passportindia.gov.in
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a 
+                href={`${API}/extension/download`}
+                className="flex items-center justify-center gap-2 bg-white text-[#2c3e50] px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-white/90 transition-colors shadow-lg"
+                data-testid="download-extension-btn"
+              >
+                <Download className="w-4 h-4" />
+                Download Extension
+              </a>
+              <a 
+                href="https://services1.passportindia.gov.in/forms/PreLogin"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-white/10 text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-white/20 transition-colors border border-white/20"
+                data-testid="visit-portal-btn"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Visit Passport Seva
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Introduction Banner */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8 shadow-sm">
           <div className="flex items-start gap-4">
