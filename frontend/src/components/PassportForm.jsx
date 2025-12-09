@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Calendar, MapPin, GraduationCap, Home, FileText, AlertCircle } from "lucide-react";
+import { User, Calendar, MapPin, GraduationCap, Home, FileText, AlertCircle, HelpCircle } from "lucide-react";
 
 const FormField = ({ 
   label, 
@@ -7,7 +7,7 @@ const FormField = ({
   type = "text", 
   placeholder, 
   options, 
-  onFocus, 
+  onHelpClick, 
   isActive,
   required = true,
   icon: Icon,
@@ -21,17 +21,34 @@ const FormField = ({
     ? "border-[#3498db] ring-2 ring-[#3498db]/20 bg-blue-50/30" 
     : "border-slate-300 hover:border-slate-400";
 
-  const handleFocus = () => {
-    onFocus(label, type === "select" ? "select" : "input");
+  const handleHelpClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onHelpClick(label, type === "select" ? "select" : "input");
   };
 
   return (
     <div className="mb-5" data-testid={`form-field-${name}`}>
-      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center gap-2">
-        {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
-        {label}
-        {required && <span className="text-[#d35400]">*</span>}
-      </label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center gap-2">
+          {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
+          {label}
+          {required && <span className="text-[#d35400]">*</span>}
+        </label>
+        <button
+          type="button"
+          onClick={handleHelpClick}
+          className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+            isActive 
+              ? 'bg-[#3498db] text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-[#3498db]/10 hover:text-[#3498db]'
+          }`}
+          data-testid={`help-btn-${name}`}
+        >
+          <HelpCircle className="w-3 h-3" />
+          <span>Need Help?</span>
+        </button>
+      </div>
       {helpText && (
         <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
@@ -41,7 +58,6 @@ const FormField = ({
       {type === "select" ? (
         <select
           name={name}
-          onFocus={handleFocus}
           className={`${baseInputClass} ${activeClass} cursor-pointer`}
           data-testid={`select-${name}`}
         >
@@ -56,7 +72,6 @@ const FormField = ({
         <textarea
           name={name}
           placeholder={placeholder}
-          onFocus={handleFocus}
           rows={3}
           className={`${baseInputClass} ${activeClass} resize-none`}
           data-testid={`textarea-${name}`}
@@ -66,7 +81,6 @@ const FormField = ({
           type={type}
           name={name}
           placeholder={placeholder}
-          onFocus={handleFocus}
           className={`${baseInputClass} ${activeClass}`}
           data-testid={`input-${name}`}
         />
@@ -87,7 +101,7 @@ const SectionHeader = ({ title, subtitle, icon: Icon }) => (
   </div>
 );
 
-const PassportForm = ({ onFieldFocus, activeField }) => {
+const PassportForm = ({ onHelpClick, activeField }) => {
   const ecnrOptions = [
     { value: "ecr", label: "ECR - Emigration Check Required" },
     { value: "ecnr", label: "ECNR - Emigration Check Not Required" }
@@ -155,7 +169,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="Given Name (First & Middle Name)"
               name="given_name"
               placeholder="Enter your first and middle name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Given Name (First & Middle Name)"}
               icon={User}
               helpText="As printed on existing documents"
@@ -164,14 +178,14 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="Surname (Last Name)"
               name="surname"
               placeholder="Enter your surname"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Surname (Last Name)"}
             />
             <FormField
               label="Date of Birth"
               name="dob"
               type="date"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Date of Birth"}
               icon={Calendar}
             />
@@ -180,14 +194,14 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="gender"
               type="select"
               options={genderOptions}
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Gender"}
             />
             <FormField
               label="Place of Birth (City/Town/Village)"
               name="birth_place"
               placeholder="Enter your place of birth"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Place of Birth (City/Town/Village)"}
               icon={MapPin}
             />
@@ -196,7 +210,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="marital_status"
               type="select"
               options={maritalOptions}
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Marital Status"}
             />
           </div>
@@ -215,28 +229,28 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="Father's Given Name"
               name="father_given_name"
               placeholder="Enter father's first name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Father's Given Name"}
             />
             <FormField
               label="Father's Surname"
               name="father_surname"
               placeholder="Enter father's surname"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Father's Surname"}
             />
             <FormField
               label="Mother's Given Name"
               name="mother_given_name"
               placeholder="Enter mother's first name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Mother's Given Name"}
             />
             <FormField
               label="Mother's Surname"
               name="mother_surname"
               placeholder="Enter mother's surname"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Mother's Surname"}
             />
           </div>
@@ -256,7 +270,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="education"
               type="select"
               options={educationOptions}
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Educational Qualification"}
               icon={GraduationCap}
             />
@@ -265,7 +279,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="employment"
               type="select"
               options={employmentOptions}
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Employment Type"}
             />
             <FormField
@@ -273,7 +287,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="ecr_status"
               type="select"
               options={ecnrOptions}
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "ECR / ECNR Status"}
               helpText="Important for international travel"
             />
@@ -293,7 +307,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="House No. & Street Name"
               name="street"
               placeholder="Enter house number and street"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "House No. & Street Name"}
               icon={Home}
             />
@@ -301,28 +315,28 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="Village / Town / City"
               name="city"
               placeholder="Enter city or town name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Village / Town / City"}
             />
             <FormField
               label="District"
               name="district"
               placeholder="Enter district name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "District"}
             />
             <FormField
               label="State / Union Territory"
               name="state"
               placeholder="Enter state name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "State / Union Territory"}
             />
             <FormField
               label="PIN Code"
               name="pincode"
               placeholder="Enter 6-digit PIN code"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "PIN Code"}
             />
             <FormField
@@ -330,7 +344,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="mobile"
               type="tel"
               placeholder="Enter 10-digit mobile number"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Mobile Number"}
             />
           </div>
@@ -349,7 +363,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               label="Emergency Contact Name"
               name="emergency_name"
               placeholder="Enter contact person's name"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Emergency Contact Name"}
             />
             <FormField
@@ -357,7 +371,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="emergency_mobile"
               type="tel"
               placeholder="Enter contact person's mobile"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Emergency Contact Mobile"}
             />
             <FormField
@@ -365,7 +379,7 @@ const PassportForm = ({ onFieldFocus, activeField }) => {
               name="emergency_address"
               type="textarea"
               placeholder="Enter complete address of emergency contact"
-              onFocus={onFieldFocus}
+              onHelpClick={onHelpClick}
               isActive={activeField === "Emergency Contact Address"}
               required={false}
             />

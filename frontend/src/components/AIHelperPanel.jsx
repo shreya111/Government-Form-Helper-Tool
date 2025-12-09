@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2, CheckCircle2, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2, CheckCircle2, ChevronRight, Info } from "lucide-react";
 
 const ShimmerCard = () => (
   <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm mb-4">
@@ -11,7 +11,6 @@ const ShimmerCard = () => (
 
 const ShimmerLoader = () => (
   <div className="space-y-4 px-5 py-4">
-    <ShimmerCard />
     <ShimmerCard />
     <ShimmerCard />
   </div>
@@ -99,6 +98,50 @@ const InteractiveQuestionCard = ({ question, options, onOptionSelect, selectedOp
   </div>
 );
 
+const SimpleAdviceCard = ({ advice, warning }) => (
+  <div className="space-y-4 card-animate">
+    {/* Advice Card */}
+    <div 
+      className="rounded-xl border border-slate-100 border-l-4 border-l-[#3498db] bg-[#3498db]/5 p-5 shadow-sm"
+      data-testid="ai-card-advice"
+    >
+      <div className="flex items-start gap-3">
+        <div className="bg-[#3498db]/10 p-2 rounded-lg shrink-0">
+          <Lightbulb className="w-4 h-4 text-[#3498db]" />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-[#3498db]">
+            Expert Advice
+          </h4>
+          <p className="text-sm text-[#2c3e50] leading-relaxed font-medium">
+            {advice}
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    {/* Warning Card */}
+    <div 
+      className="rounded-xl border border-slate-100 border-l-4 border-l-[#d35400] bg-orange-50/30 p-5 shadow-sm"
+      data-testid="ai-card-warning"
+    >
+      <div className="flex items-start gap-3">
+        <div className="bg-[#d35400]/10 p-2 rounded-lg shrink-0">
+          <AlertTriangle className="w-4 h-4 text-[#d35400]" />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-[#d35400]">
+            Common Mistake to Avoid
+          </h4>
+          <p className="text-sm text-[#2c3e50] leading-relaxed font-medium">
+            {warning}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const ResponseCard = ({ type, title, content, icon: Icon, delay = 0 }) => {
   const variants = {
     advice: {
@@ -147,7 +190,7 @@ const IdleState = () => (
     </div>
     <h3 className="text-lg font-bold text-[#2c3e50] mb-2">Ready to Help!</h3>
     <p className="text-sm text-slate-500 leading-relaxed max-w-[240px]">
-      Click on any form field to get AI-powered guidance and helpful tips.
+      Click the <span className="font-semibold text-[#3498db]">"Need Help?"</span> button next to any field to get guidance.
     </p>
   </div>
 );
@@ -167,14 +210,14 @@ const ErrorState = ({ error }) => (
 const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, error }) => {
   const [selectedOption, setSelectedOption] = useState(null);
 
+  // Reset selected option when field changes
+  useEffect(() => {
+    setSelectedOption(null);
+  }, [activeField]);
+
   const handleOptionSelect = (option) => {
     setSelectedOption(option);
   };
-
-  // Reset selected option when response changes
-  if (response && selectedOption && response.field_label !== activeField) {
-    setSelectedOption(null);
-  }
 
   if (!isVisible) return null;
 
@@ -225,31 +268,40 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           <ErrorState error={error} />
         ) : response ? (
           <div className="p-5 space-y-4">
-            {/* Interactive Question Card */}
-            <InteractiveQuestionCard
-              question={response.clarification_question}
-              options={response.question_options}
-              onOptionSelect={handleOptionSelect}
-              selectedOption={selectedOption}
-            />
-            
-            {/* Advice Card */}
-            <ResponseCard
-              type="advice"
-              title="Expert Advice"
-              content={response.advice}
-              icon={Lightbulb}
-              delay={200}
-            />
-            
-            {/* Warning Card */}
-            <ResponseCard
-              type="warning"
-              title="Common Mistake to Avoid"
-              content={response.warning}
-              icon={AlertTriangle}
-              delay={300}
-            />
+            {/* Smart Detection: Interactive vs Simple */}
+            {response.needs_interaction && response.clarification_question ? (
+              <>
+                {/* Interactive Question Card */}
+                <InteractiveQuestionCard
+                  question={response.clarification_question}
+                  options={response.question_options}
+                  onOptionSelect={handleOptionSelect}
+                  selectedOption={selectedOption}
+                />
+                
+                {/* Additional Info Cards */}
+                <ResponseCard
+                  type="advice"
+                  title="Additional Context"
+                  content={response.advice}
+                  icon={Info}
+                  delay={200}
+                />
+                <ResponseCard
+                  type="warning"
+                  title="Common Mistake to Avoid"
+                  content={response.warning}
+                  icon={AlertTriangle}
+                  delay={300}
+                />
+              </>
+            ) : (
+              /* Simple Advice (No Interactive Questions) */
+              <SimpleAdviceCard 
+                advice={response.advice} 
+                warning={response.warning} 
+              />
+            )}
           </div>
         ) : (
           <IdleState />
@@ -259,7 +311,10 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
       {/* Footer */}
       <div className="border-t border-slate-200 px-5 py-4 bg-slate-50 shrink-0">
         <p className="text-xs text-slate-400 text-center">
-          Answer the question above to get<br />personalized recommendations.
+          {response?.needs_interaction 
+            ? "Answer the question above for personalized guidance."
+            : "Based on official form requirements."
+          }
         </p>
       </div>
     </div>

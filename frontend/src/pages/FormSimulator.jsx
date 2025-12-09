@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import PassportForm from "@/components/PassportForm";
 import AIHelperPanel from "@/components/AIHelperPanel";
-import { Bot, FileText, Shield } from "lucide-react";
+import { Bot, FileText, Shield, HelpCircle } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -14,7 +14,7 @@ const FormSimulator = () => {
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleFieldFocus = useCallback(async (fieldLabel, fieldType = "input") => {
+  const handleHelpClick = useCallback(async (fieldLabel, fieldType = "input") => {
     setActiveField(fieldLabel);
     setIsPanelVisible(true);
     setIsLoading(true);
@@ -76,8 +76,9 @@ const FormSimulator = () => {
             <div>
               <h2 className="text-lg font-bold text-[#2c3e50] mb-1">Welcome to the Form Helper Demo</h2>
               <p className="text-slate-600 leading-relaxed">
-                Click on any form field below to receive AI-powered guidance. The assistant will help you understand 
-                what to enter, ask clarifying questions, and warn you about common mistakes.
+                Click the <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full text-sm font-medium text-slate-600"><HelpCircle className="w-3 h-3" />Need Help?</span> button 
+                next to any field to receive AI-powered guidance. The assistant will intelligently decide whether 
+                to ask you clarifying questions or provide direct advice.
               </p>
             </div>
           </div>
@@ -89,7 +90,7 @@ const FormSimulator = () => {
           <div className={`transition-all duration-300 ease-out ${
             isPanelVisible ? 'w-full lg:w-[calc(100%-420px)]' : 'w-full'
           }`}>
-            <PassportForm onFieldFocus={handleFieldFocus} activeField={activeField} />
+            <PassportForm onHelpClick={handleHelpClick} activeField={activeField} />
           </div>
 
           {/* AI Panel */}
