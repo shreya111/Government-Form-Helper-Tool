@@ -1,5 +1,5 @@
 // Government Form Helper - Content Script
-// Detects form fields and injects the helper UI on Passport Seva portal
+// Detects form fields and shows helper panel when fields are clicked/focused
 
 (function() {
   'use strict';
@@ -7,7 +7,7 @@
   // Configuration
   const CONFIG = {
     panelWidth: 380,
-    debounceDelay: 300,
+    debounceDelay: 500,
     formContext: 'Indian Passport Application Form (Passport Seva Portal)'
   };
 
@@ -16,14 +16,16 @@
     isPanelVisible: false,
     isLoading: false,
     activeField: null,
+    activeElement: null,
     response: null,
     selectedOption: null,
-    error: null
+    error: null,
+    lastRequestedLabel: null
   };
 
   // DOM Elements
   let helperPanel = null;
-  let helpButtons = new Map();
+  let debounceTimer = null;
 
   // Initialize the extension
   function init() {
@@ -41,13 +43,152 @@
     // Create the helper panel
     createHelperPanel();
     
-    // Scan for form fields and add help buttons
-    scanAndAttachHelpButtons();
+    // Attach global event listeners for form fields
+    attachGlobalListeners();
     
     // Set up mutation observer for dynamically added fields
     observeDOMChanges();
     
-    console.log('Government Form Helper: Setup complete');
+    console.log('Government Form Helper: Setup complete - click any form field for help');
+  }
+
+  // Attach global event listeners using event delegation
+  function attachGlobalListeners() {
+    // Use focusin for event delegation (it bubbles unlike focus)
+    document.addEventListener('focusin', handleFieldFocus, true);
+    
+    // Also listen for clicks on radio buttons and checkboxes
+    document.addEventListener('click', handleFieldClick, true);
+  }
+
+  // Handle field focus event
+  function handleFieldFocus(event) {
+    const element = event.target;
+    
+    // Check if it's a form element we care about
+    if (isFormElement(element)) {
+      triggerHelp(element);
+    }
+  }
+
+  // Handle click event (for radio buttons, checkboxes)
+  function handleFieldClick(event) {
+    const element = event.target;
+    
+    // Special handling for radio buttons and checkboxes
+    if (element.type === 'radio' || element.type === 'checkbox') {
+      triggerHelp(element);
+    }
+    
+    // Also handle clicks on labels that are associated with inputs
+    if (element.tagName.toLowerCase() === 'label') {
+      const forId = element.getAttribute('for');
+      if (forId) {
+        const input = document.getElementById(forId);
+        if (input && isFormElement(input)) {
+          triggerHelp(input);
+        }
+      }
+    }
+  }
+
+  // Check if element is a form element we should help with
+  function isFormElement(element) {
+    if (!element || element.closest('#gov-helper-panel')) return false;
+    
+    const tagName = element.tagName.toLowerCase();
+    const type = element.type?.toLowerCase();
+    
+    // Include inputs (except hidden, submit, button, reset)
+    if (tagName === 'input') {
+      const excludedTypes = ['hidden', 'submit', 'button', 'reset', 'image'];
+      return !excludedTypes.includes(type);
+    }
+    
+    // Include select and textarea
+    return tagName === 'select' || tagName === 'textarea';
+  }
+
+  // Trigger help for a form element
+  function triggerHelp(element) {
+    const label = extractFieldLabel(element);
+    
+    // Skip if no meaningful label found or same field
+    if (!label || label.trim().length < 2) return;
+    
+    // Debounce to avoid multiple rapid requests
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      // Skip if same field is already active and has response
+      if (state.lastRequestedLabel === label && state.response && !state.error) {
+        // Just show the panel if hidden
+        if (!state.isPanelVisible) {
+          showPanel();
+        }
+        highlightField(element);
+        return;
+      }
+      
+      fetchHelpForField(element, label);
+    }, CONFIG.debounceDelay);
+  }
+
+  // Fetch help for a specific field
+  async function fetchHelpForField(element, label) {
+    state.activeField = label;
+    state.activeElement = element;
+    state.lastRequestedLabel = label;
+    state.isLoading = true;
+    state.response = null;
+    state.selectedOption = null;
+    state.error = null;
+
+    // Show panel with loading state
+    showPanel();
+    updatePanelContent();
+
+    // Highlight the active field
+    highlightField(element);
+
+    // Determine field type
+    const fieldType = getFieldType(element);
+
+    try {
+      // Send message to background script
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_FORM_HELP',
+        payload: {
+          fieldLabel: label,
+          fieldType: fieldType,
+          formContext: CONFIG.formContext
+        }
+      });
+
+      if (response.success) {
+        state.response = response.data;
+      } else {
+        state.error = response.error || 'Failed to get guidance';
+      }
+    } catch (error) {
+      console.error('Government Form Helper: Error fetching help', error);
+      state.error = 'Unable to connect to AI service';
+    }
+
+    state.isLoading = false;
+    updatePanelContent();
+  }
+
+  // Get field type for API
+  function getFieldType(element) {
+    const tagName = element.tagName.toLowerCase();
+    const type = element.type?.toLowerCase();
+    
+    if (tagName === 'select') return 'select';
+    if (tagName === 'textarea') return 'textarea';
+    if (type === 'radio') return 'radio';
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'date') return 'date';
+    return 'input';
   }
 
   // Create the floating helper panel
@@ -96,79 +237,13 @@
             </svg>
           </div>
           <h4>Ready to Help!</h4>
-          <p>Click the <span class="gov-helper-highlight">"Need Help?"</span> button next to any field.</p>
+          <p>Click on any form field to get instant guidance.</p>
         </div>
       </div>
       <div class="gov-helper-footer">
-        <p>Based on official form requirements.</p>
+        <p>Click any field for guidance</p>
       </div>
     `;
-  }
-
-  // Scan the page for form fields and attach help buttons
-  function scanAndAttachHelpButtons() {
-    // Find all input, select, and textarea elements
-    const formElements = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea');
-    
-    formElements.forEach(element => {
-      if (!helpButtons.has(element) && !element.closest('#gov-helper-panel')) {
-        attachHelpButton(element);
-      }
-    });
-
-    // Also scan for table-based form layouts (common in government sites)
-    scanTableBasedForms();
-  }
-
-  // Scan table-based forms (legacy government site structure)
-  function scanTableBasedForms() {
-    // Look for labels in table cells
-    const tableCells = document.querySelectorAll('td, th');
-    
-    tableCells.forEach(cell => {
-      const inputs = cell.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea');
-      inputs.forEach(input => {
-        if (!helpButtons.has(input) && !input.closest('#gov-helper-panel')) {
-          attachHelpButton(input);
-        }
-      });
-    });
-  }
-
-  // Attach a help button to a form field
-  function attachHelpButton(element) {
-    const label = extractFieldLabel(element);
-    if (!label || label.trim().length < 2) return;
-
-    // Create help button
-    const helpBtn = document.createElement('button');
-    helpBtn.type = 'button';
-    helpBtn.className = 'gov-helper-btn';
-    helpBtn.innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-      </svg>
-      <span>Help</span>
-    `;
-    helpBtn.title = `Get help for: ${label}`;
-    
-    // Position the button
-    helpBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      handleHelpClick(element, label);
-    });
-
-    // Insert button after the element or in its container
-    const container = element.closest('td') || element.parentElement;
-    if (container) {
-      // Check if button already exists
-      if (!container.querySelector('.gov-helper-btn')) {
-        container.style.position = 'relative';
-        container.appendChild(helpBtn);
-        helpButtons.set(element, helpBtn);
-      }
-    }
   }
 
   // Extract the label text for a form field
@@ -191,7 +266,35 @@
       }
     }
 
-    // Method 3: Check previous sibling or parent's previous sibling (table layouts)
+    // Method 3: For radio buttons, get the group label
+    if (!label && element.type === 'radio') {
+      const name = element.name;
+      if (name) {
+        // Look for a label or text near the radio group
+        const radioGroup = document.querySelectorAll(`input[name="${name}"]`);
+        if (radioGroup.length > 0) {
+          const firstRadio = radioGroup[0];
+          const container = firstRadio.closest('td, div, fieldset');
+          if (container) {
+            // Try to find legend or nearby label
+            const legend = container.querySelector('legend');
+            if (legend) {
+              label = legend.textContent;
+            } else {
+              // Get the specific option label for this radio
+              const optionLabel = element.closest('label')?.textContent || 
+                                  element.nextSibling?.textContent ||
+                                  element.parentElement?.textContent;
+              if (optionLabel) {
+                label = `Option: ${optionLabel.trim()}`;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Method 4: Check previous sibling or parent's previous sibling (table layouts)
     if (!label) {
       const row = element.closest('tr');
       if (row) {
@@ -205,7 +308,21 @@
       }
     }
 
-    // Method 4: Check for nearby text nodes
+    // Method 5: Check for nearby text in same cell
+    if (!label) {
+      const cell = element.closest('td, th');
+      if (cell) {
+        const textNodes = Array.from(cell.childNodes)
+          .filter(node => node.nodeType === Node.TEXT_NODE)
+          .map(node => node.textContent.trim())
+          .filter(text => text.length > 0);
+        if (textNodes.length > 0) {
+          label = textNodes[0];
+        }
+      }
+    }
+
+    // Method 6: Check for nearby text nodes in parent
     if (!label) {
       const parent = element.parentElement;
       if (parent) {
@@ -219,13 +336,26 @@
       }
     }
 
-    // Method 5: Use placeholder or name attribute
+    // Method 7: Use placeholder, name, or title attribute
     if (!label) {
-      label = element.placeholder || element.name || element.getAttribute('aria-label') || '';
+      label = element.placeholder || 
+              element.title || 
+              element.getAttribute('aria-label') || 
+              formatNameAttribute(element.name) || 
+              '';
     }
 
     // Clean up the label
     return cleanLabel(label);
+  }
+
+  // Format name attribute to readable label
+  function formatNameAttribute(name) {
+    if (!name) return '';
+    return name
+      .replace(/[_-]/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\b\w/g, l => l.toUpperCase());
   }
 
   // Clean up label text
@@ -236,49 +366,6 @@
       .replace(/\s+/g, ' ')         // Normalize whitespace
       .replace(/^\s+|\s+$/g, '')    // Trim
       .substring(0, 100);           // Limit length
-  }
-
-  // Handle help button click
-  async function handleHelpClick(element, label) {
-    state.activeField = label;
-    state.isLoading = true;
-    state.response = null;
-    state.selectedOption = null;
-    state.error = null;
-
-    // Show panel with loading state
-    showPanel();
-    updatePanelContent();
-
-    // Highlight the active field
-    highlightField(element);
-
-    // Determine field type
-    const fieldType = element.tagName.toLowerCase() === 'select' ? 'select' : 'input';
-
-    try {
-      // Send message to background script
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_FORM_HELP',
-        payload: {
-          fieldLabel: label,
-          fieldType: fieldType,
-          formContext: CONFIG.formContext
-        }
-      });
-
-      if (response.success) {
-        state.response = response.data;
-      } else {
-        state.error = response.error || 'Failed to get guidance';
-      }
-    } catch (error) {
-      console.error('Government Form Helper: Error fetching help', error);
-      state.error = 'Unable to connect to AI service';
-    }
-
-    state.isLoading = false;
-    updatePanelContent();
   }
 
   // Show the helper panel
@@ -379,7 +466,7 @@
           </svg>
         </div>
         <h4>Ready to Help!</h4>
-        <p>Click the <span class="gov-helper-highlight">"Help"</span> button next to any field.</p>
+        <p>Click on any form field to get instant guidance.</p>
       </div>
     `;
   }
@@ -532,17 +619,7 @@
   // Observe DOM changes for dynamically added fields
   function observeDOMChanges() {
     const observer = new MutationObserver((mutations) => {
-      let shouldRescan = false;
-      mutations.forEach(mutation => {
-        if (mutation.addedNodes.length > 0) {
-          shouldRescan = true;
-        }
-      });
-      if (shouldRescan) {
-        // Debounce the rescan
-        clearTimeout(observeDOMChanges.timeout);
-        observeDOMChanges.timeout = setTimeout(scanAndAttachHelpButtons, CONFIG.debounceDelay);
-      }
+      // DOM changed, listeners are already global so no action needed
     });
 
     observer.observe(document.body, {

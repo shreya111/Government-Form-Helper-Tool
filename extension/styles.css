@@ -13,46 +13,12 @@
   --gov-helper-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
-/* Help Button Styles */
-.gov-helper-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  margin-left: 8px;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.gov-helper-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4);
-  background: linear-gradient(135deg, #2980b9 0%, #2573a7 100%);
-}
-
-.gov-helper-btn:active {
-  transform: translateY(0);
-}
-
-.gov-helper-btn svg {
-  flex-shrink: 0;
-}
-
 /* Active Field Highlight */
 .gov-helper-active-field {
   outline: 2px solid var(--gov-helper-bright-blue) !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15) !important;
+  background-color: rgba(52, 152, 219, 0.05) !important;
 }
 
 /* Helper Panel */
