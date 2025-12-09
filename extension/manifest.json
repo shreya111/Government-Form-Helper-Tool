@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Government Form Helper",
+  "version": "1.0.0",
+  "description": "AI-powered assistant for filling Indian government forms like Passport Seva",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.passportindia.gov.in/*",
+    "*://services1.passportindia.gov.in/*",
+    "https://egovhelper.preview.emergentagent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.passportindia.gov.in/*",
+        "*://services1.passportindia.gov.in/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Government Form Helper"
+  }
+}
