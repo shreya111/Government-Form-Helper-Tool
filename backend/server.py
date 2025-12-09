@@ -158,16 +158,13 @@ async def get_form_help(request: FormHelpRequest):
         session_id = f"form-helper-{uuid.uuid4()}"
         chat = get_llm_chat(session_id)
         
-        user_prompt = f"""The user is filling an {request.form_context} and is currently focused on the field: '{request.field_label}' (field type: {request.field_type}).
+        user_prompt = f"""The user is filling an {request.form_context} and needs help with the field: '{request.field_label}' (field type: {request.field_type}).
 
-Provide helpful, INTERACTIVE guidance for this specific field. Create a clarification question with 2-4 clickable answer options that will help the user decide what to enter.
+DECIDE: Does this field need interactive questions with options, or just simple advice?
+- SELECT/dropdown fields where choice depends on user situation → needs_interaction: true
+- Simple text fields like names, addresses, dates → needs_interaction: false
 
-Return ONLY a valid JSON object with these exact keys:
-- clarification_question (string)
-- question_options (array of objects with label, value, recommendation)
-- advice (string, max 25 words)
-- warning (string)
-- recommended_value (string or null)
+Return a JSON object with needs_interaction boolean, and appropriate content.
 
 JSON response:"""
         
@@ -188,9 +185,9 @@ JSON response:"""
             
             parsed = json.loads(cleaned_response)
             
-            # Parse question options
+            # Parse question options if present
             question_options = []
-            if "question_options" in parsed and isinstance(parsed["question_options"], list):
+            if parsed.get("needs_interaction") and "question_options" in parsed and isinstance(parsed["question_options"], list):
                 for opt in parsed["question_options"]:
                     question_options.append(QuestionOption(
                         label=opt.get("label", ""),
@@ -199,7 +196,8 @@ JSON response:"""
                     ))
             
             result = FormHelpResponse(
-                clarification_question=parsed.get("clarification_question", "How can I help you with this field?"),
+                needs_interaction=parsed.get("needs_interaction", False),
+                clarification_question=parsed.get("clarification_question"),
                 question_options=question_options,
                 advice=parsed.get("advice", "Enter the required information accurately."),
                 warning=parsed.get("warning", "Double-check for any typos before submitting."),
@@ -221,13 +219,11 @@ JSON response:"""
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response: {response}, error: {e}")
-            # Return fallback response with default options
+            # Return fallback response
             return FormHelpResponse(
-                clarification_question="What information do you need help with for this field?",
-                question_options=[
-                    QuestionOption(label="I need general guidance", value="general", recommendation="Enter as per your official documents"),
-                    QuestionOption(label="I'm not sure what to enter", value="unsure", recommendation="Check your supporting documents")
-                ],
+                needs_interaction=False,
+                clarification_question=None,
+                question_options=[],
                 advice="Enter the required details as per your official documents.",
                 warning="Ensure accuracy to avoid application rejection.",
                 field_label=request.field_label,
