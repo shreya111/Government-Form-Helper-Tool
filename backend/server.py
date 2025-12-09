@@ -48,11 +48,18 @@ class FormHelpRequest(BaseModel):
     field_type: Optional[str] = "input"
     form_context: Optional[str] = "Indian Passport Application Form"
 
+class QuestionOption(BaseModel):
+    label: str
+    value: str
+    recommendation: Optional[str] = None
+
 class FormHelpResponse(BaseModel):
     clarification_question: str
+    question_options: List[QuestionOption] = []
     advice: str
     warning: str
     field_label: str
+    recommended_value: Optional[str] = None
 
 class ChatHistory(BaseModel):
     model_config = ConfigDict(extra="ignore")
