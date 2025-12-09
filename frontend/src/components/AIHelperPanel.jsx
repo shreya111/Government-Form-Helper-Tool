@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2, CheckCircle2, ChevronRight, Info } from "lucide-react";
+import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2, CheckCircle2, ChevronRight, Info, ChevronDown, Circle } from "lucide-react";
 
 const ShimmerCard = () => (
   <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm mb-4">
@@ -13,6 +13,55 @@ const ShimmerLoader = () => (
   <div className="space-y-4 px-5 py-4">
     <ShimmerCard />
     <ShimmerCard />
+  </div>
+);
+
+// Local Options Display (for dropdowns/radios - no AI call)
+const LocalOptionsCard = ({ data }) => (
+  <div className="space-y-4 card-animate">
+    <div 
+      className="rounded-xl border border-slate-100 border-l-4 border-l-[#27ae60] bg-[#27ae60]/5 p-5 shadow-sm"
+      data-testid="local-options-card"
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-[#27ae60]/10 p-2 rounded-lg">
+          {data.type === 'select' ? (
+            <ChevronDown className="w-4 h-4 text-[#27ae60]" />
+          ) : (
+            <Circle className="w-4 h-4 text-[#27ae60]" />
+          )}
+        </div>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-[#27ae60]">
+          {data.type === 'select' ? 'Dropdown Options' : 'Radio Options'}
+        </h4>
+      </div>
+      <p className="text-xs text-slate-500 mb-3">{data.hint}</p>
+      <div className="space-y-2">
+        {data.options.map((opt, idx) => (
+          <div 
+            key={idx}
+            className={`flex items-center gap-3 p-3 rounded-lg border ${
+              opt.selected 
+                ? 'border-[#27ae60] bg-[#27ae60]/5' 
+                : 'border-slate-200 bg-white'
+            }`}
+          >
+            <div className={`w-4 h-4 rounded flex items-center justify-center text-xs border-2 ${
+              opt.selected 
+                ? 'border-[#27ae60] bg-[#27ae60] text-white' 
+                : 'border-slate-300'
+            }`}>
+              {opt.selected && '✓'}
+            </div>
+            <span className="text-sm text-[#2c3e50]">{opt.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+      <Info className="w-4 h-4 text-slate-400" />
+      <span className="text-xs text-slate-500">Select an option from the form. No AI credits used.</span>
+    </div>
   </div>
 );
 
@@ -100,7 +149,6 @@ const InteractiveQuestionCard = ({ question, options, onOptionSelect, selectedOp
 
 const SimpleAdviceCard = ({ advice, warning }) => (
   <div className="space-y-4 card-animate">
-    {/* Advice Card */}
     <div 
       className="rounded-xl border border-slate-100 border-l-4 border-l-[#3498db] bg-[#3498db]/5 p-5 shadow-sm"
       data-testid="ai-card-advice"
@@ -120,7 +168,6 @@ const SimpleAdviceCard = ({ advice, warning }) => (
       </div>
     </div>
     
-    {/* Warning Card */}
     <div 
       className="rounded-xl border border-slate-100 border-l-4 border-l-[#d35400] bg-orange-50/30 p-5 shadow-sm"
       data-testid="ai-card-warning"
@@ -190,7 +237,7 @@ const IdleState = () => (
     </div>
     <h3 className="text-lg font-bold text-[#2c3e50] mb-2">Ready to Help!</h3>
     <p className="text-sm text-slate-500 leading-relaxed max-w-[240px]">
-      Click the <span className="font-semibold text-[#3498db]">"Need Help?"</span> button next to any field to get guidance.
+      Click on any form field to see available options or get guidance.
     </p>
   </div>
 );
@@ -207,10 +254,9 @@ const ErrorState = ({ error }) => (
   </div>
 );
 
-const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, error }) => {
+const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, error, localData }) => {
   const [selectedOption, setSelectedOption] = useState(null);
 
-  // Reset selected option when field changes
   useEffect(() => {
     setSelectedOption(null);
   }, [activeField]);
@@ -220,6 +266,11 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
   };
 
   if (!isVisible) return null;
+
+  const isLocalResponse = localData && !response && !isLoading;
+  const footerText = isLocalResponse 
+    ? "Options detected from form" 
+    : (isLoading ? "Getting AI guidance..." : "AI-powered guidance");
 
   return (
     <div 
@@ -234,7 +285,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">Form Quick Guide</h3>
-            <p className="text-xs text-white/60">Powered by Gemini AI</p>
+            <p className="text-xs text-white/60">Click any field for help</p>
           </div>
         </div>
         <button 
@@ -260,32 +311,25 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           <div className="pt-4">
             <div className="px-5 py-2 flex items-center gap-2 mb-2">
               <Loader2 className="w-4 h-4 text-[#3498db] animate-spin" />
-              <span className="text-sm text-slate-500">Analyzing field...</span>
+              <span className="text-sm text-slate-500">Getting AI guidance...</span>
             </div>
             <ShimmerLoader />
           </div>
         ) : error ? (
           <ErrorState error={error} />
+        ) : isLocalResponse ? (
+          <div className="p-5">
+            <LocalOptionsCard data={localData} />
+          </div>
         ) : response ? (
           <div className="p-5 space-y-4">
-            {/* Smart Detection: Interactive vs Simple */}
             {response.needs_interaction && response.clarification_question ? (
               <>
-                {/* Interactive Question Card */}
                 <InteractiveQuestionCard
                   question={response.clarification_question}
                   options={response.question_options}
                   onOptionSelect={handleOptionSelect}
                   selectedOption={selectedOption}
-                />
-                
-                {/* Additional Info Cards */}
-                <ResponseCard
-                  type="advice"
-                  title="Additional Context"
-                  content={response.advice}
-                  icon={Info}
-                  delay={200}
                 />
                 <ResponseCard
                   type="warning"
@@ -296,7 +340,6 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
                 />
               </>
             ) : (
-              /* Simple Advice (No Interactive Questions) */
               <SimpleAdviceCard 
                 advice={response.advice} 
                 warning={response.warning} 
@@ -311,10 +354,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
       {/* Footer */}
       <div className="border-t border-slate-200 px-5 py-4 bg-slate-50 shrink-0">
         <p className="text-xs text-slate-400 text-center">
-          {response?.needs_interaction 
-            ? "Answer the question above for personalized guidance."
-            : "Based on official form requirements."
-          }
+          {footerText}
         </p>
       </div>
     </div>
