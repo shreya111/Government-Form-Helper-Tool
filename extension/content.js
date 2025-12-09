@@ -1,5 +1,5 @@
 // Government Form Helper - Content Script
-// Detects form fields and shows helper panel when fields are clicked/focused
+// Detects form fields and shows helper panel - uses DOM detection for dropdowns/radios to save API credits
 
 (function() {
   'use strict';
@@ -7,7 +7,7 @@
   // Configuration
   const CONFIG = {
     panelWidth: 380,
-    debounceDelay: 500,
+    debounceDelay: 300,
     formContext: 'Indian Passport Application Form (Passport Seva Portal)'
   };
 
@@ -20,7 +20,8 @@
     response: null,
     selectedOption: null,
     error: null,
-    lastRequestedLabel: null
+    lastRequestedLabel: null,
+    isLocalResponse: false
   };
 
   // DOM Elements
@@ -31,7 +32,6 @@
   function init() {
     console.log('Government Form Helper: Initializing on Passport Seva portal');
     
-    // Wait for DOM to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', setup);
     } else {
@@ -40,47 +40,33 @@
   }
 
   function setup() {
-    // Create the helper panel
     createHelperPanel();
-    
-    // Attach global event listeners for form fields
     attachGlobalListeners();
-    
-    // Set up mutation observer for dynamically added fields
-    observeDOMChanges();
-    
-    console.log('Government Form Helper: Setup complete - click any form field for help');
+    console.log('Government Form Helper: Ready - click any form field');
   }
 
-  // Attach global event listeners using event delegation
+  // Attach global event listeners
   function attachGlobalListeners() {
-    // Use focusin for event delegation (it bubbles unlike focus)
     document.addEventListener('focusin', handleFieldFocus, true);
-    
-    // Also listen for clicks on radio buttons and checkboxes
     document.addEventListener('click', handleFieldClick, true);
   }
 
   // Handle field focus event
   function handleFieldFocus(event) {
     const element = event.target;
-    
-    // Check if it's a form element we care about
     if (isFormElement(element)) {
       triggerHelp(element);
     }
   }
 
-  // Handle click event (for radio buttons, checkboxes)
+  // Handle click event
   function handleFieldClick(event) {
     const element = event.target;
     
-    // Special handling for radio buttons and checkboxes
     if (element.type === 'radio' || element.type === 'checkbox') {
       triggerHelp(element);
     }
     
-    // Also handle clicks on labels that are associated with inputs
     if (element.tagName.toLowerCase() === 'label') {
       const forId = element.getAttribute('for');
       if (forId) {
@@ -92,49 +78,209 @@
     }
   }
 
-  // Check if element is a form element we should help with
+  // Check if element is a form element
   function isFormElement(element) {
     if (!element || element.closest('#gov-helper-panel')) return false;
     
     const tagName = element.tagName.toLowerCase();
     const type = element.type?.toLowerCase();
     
-    // Include inputs (except hidden, submit, button, reset)
     if (tagName === 'input') {
       const excludedTypes = ['hidden', 'submit', 'button', 'reset', 'image'];
       return !excludedTypes.includes(type);
     }
     
-    // Include select and textarea
     return tagName === 'select' || tagName === 'textarea';
   }
 
   // Trigger help for a form element
   function triggerHelp(element) {
     const label = extractFieldLabel(element);
-    
-    // Skip if no meaningful label found or same field
     if (!label || label.trim().length < 2) return;
     
-    // Debounce to avoid multiple rapid requests
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      // Skip if same field is already active and has response
-      if (state.lastRequestedLabel === label && state.response && !state.error) {
-        // Just show the panel if hidden
-        if (!state.isPanelVisible) {
-          showPanel();
-        }
-        highlightField(element);
-        return;
-      }
+      // Check if we can handle this locally (dropdown/radio)
+      const localResponse = tryLocalDetection(element, label);
       
-      fetchHelpForField(element, label);
+      if (localResponse) {
+        // Show local response without API call
+        showLocalResponse(element, label, localResponse);
+      } else {
+        // Only call API for text inputs that need guidance
+        fetchHelpForField(element, label);
+      }
     }, CONFIG.debounceDelay);
   }
 
-  // Fetch help for a specific field
+  // Try to detect options locally from DOM (no API call)
+  function tryLocalDetection(element, label) {
+    const tagName = element.tagName.toLowerCase();
+    const type = element.type?.toLowerCase();
+    
+    // Handle SELECT dropdowns
+    if (tagName === 'select') {
+      return detectSelectOptions(element, label);
+    }
+    
+    // Handle RADIO buttons
+    if (type === 'radio') {
+      return detectRadioOptions(element, label);
+    }
+    
+    // Handle CHECKBOX
+    if (type === 'checkbox') {
+      return detectCheckboxOption(element, label);
+    }
+    
+    return null; // Need API call
+  }
+
+  // Detect SELECT dropdown options from DOM
+  function detectSelectOptions(selectElement, label) {
+    const options = Array.from(selectElement.options)
+      .filter(opt => opt.value && opt.value.trim() !== '')
+      .map(opt => ({
+        label: opt.textContent.trim(),
+        value: opt.value,
+        selected: opt.selected
+      }));
+    
+    if (options.length === 0) return null;
+    
+    return {
+      type: 'select',
+      fieldLabel: label,
+      options: options,
+      hint: 'Select one of the available options below:'
+    };
+  }
+
+  // Detect RADIO button options from DOM
+  function detectRadioOptions(radioElement, label) {
+    const name = radioElement.name;
+    if (!name) return null;
+    
+    const radios = document.querySelectorAll(`input[type="radio"][name="${name}"]`);
+    const options = Array.from(radios).map(radio => {
+      // Try to find label for this radio
+      let optionLabel = '';
+      
+      // Check for label element
+      if (radio.id) {
+        const labelEl = document.querySelector(`label[for="${radio.id}"]`);
+        if (labelEl) optionLabel = labelEl.textContent.trim();
+      }
+      
+      // Check parent label
+      if (!optionLabel) {
+        const parentLabel = radio.closest('label');
+        if (parentLabel) {
+          optionLabel = parentLabel.textContent.trim();
+        }
+      }
+      
+      // Check next sibling text
+      if (!optionLabel && radio.nextSibling) {
+        optionLabel = radio.nextSibling.textContent?.trim() || '';
+      }
+      
+      // Use value as fallback
+      if (!optionLabel) {
+        optionLabel = radio.value;
+      }
+      
+      return {
+        label: optionLabel,
+        value: radio.value,
+        selected: radio.checked
+      };
+    }).filter(opt => opt.label);
+    
+    if (options.length === 0) return null;
+    
+    // Try to get the group label
+    const groupLabel = getRadioGroupLabel(radioElement) || label;
+    
+    return {
+      type: 'radio',
+      fieldLabel: groupLabel,
+      options: options,
+      hint: 'Choose one option:'
+    };
+  }
+
+  // Get radio group label
+  function getRadioGroupLabel(radioElement) {
+    // Check for fieldset legend
+    const fieldset = radioElement.closest('fieldset');
+    if (fieldset) {
+      const legend = fieldset.querySelector('legend');
+      if (legend) return cleanLabel(legend.textContent);
+    }
+    
+    // Check table row
+    const row = radioElement.closest('tr');
+    if (row) {
+      const firstCell = row.querySelector('td, th');
+      if (firstCell && !firstCell.contains(radioElement)) {
+        return cleanLabel(firstCell.textContent);
+      }
+    }
+    
+    return null;
+  }
+
+  // Detect checkbox option
+  function detectCheckboxOption(checkboxElement, label) {
+    let optionLabel = label;
+    
+    // Try to get better label
+    if (checkboxElement.id) {
+      const labelEl = document.querySelector(`label[for="${checkboxElement.id}"]`);
+      if (labelEl) optionLabel = labelEl.textContent.trim();
+    }
+    
+    if (!optionLabel) {
+      const parentLabel = checkboxElement.closest('label');
+      if (parentLabel) optionLabel = parentLabel.textContent.trim();
+    }
+    
+    return {
+      type: 'checkbox',
+      fieldLabel: cleanLabel(optionLabel),
+      options: [
+        { label: 'Yes / Checked', value: 'yes', selected: checkboxElement.checked },
+        { label: 'No / Unchecked', value: 'no', selected: !checkboxElement.checked }
+      ],
+      hint: 'Check this box if applicable:'
+    };
+  }
+
+  // Show local response (no API call)
+  function showLocalResponse(element, label, localResponse) {
+    state.activeField = localResponse.fieldLabel;
+    state.activeElement = element;
+    state.isLoading = false;
+    state.error = null;
+    state.response = null;
+    state.isLocalResponse = true;
+    state.localData = localResponse;
+    
+    showPanel();
+    highlightField(element);
+    updatePanelContent();
+  }
+
+  // Fetch help from API (only for text inputs)
   async function fetchHelpForField(element, label) {
+    // Skip API call if same field
+    if (state.lastRequestedLabel === label && state.response && !state.error && !state.isLocalResponse) {
+      if (!state.isPanelVisible) showPanel();
+      highlightField(element);
+      return;
+    }
+    
     state.activeField = label;
     state.activeElement = element;
     state.lastRequestedLabel = label;
@@ -142,19 +288,16 @@
     state.response = null;
     state.selectedOption = null;
     state.error = null;
+    state.isLocalResponse = false;
+    state.localData = null;
 
-    // Show panel with loading state
     showPanel();
     updatePanelContent();
-
-    // Highlight the active field
     highlightField(element);
 
-    // Determine field type
     const fieldType = getFieldType(element);
 
     try {
-      // Send message to background script
       const response = await chrome.runtime.sendMessage({
         type: 'GET_FORM_HELP',
         payload: {
@@ -170,7 +313,7 @@
         state.error = response.error || 'Failed to get guidance';
       }
     } catch (error) {
-      console.error('Government Form Helper: Error fetching help', error);
+      console.error('Government Form Helper: Error', error);
       state.error = 'Unable to connect to AI service';
     }
 
@@ -178,28 +321,24 @@
     updatePanelContent();
   }
 
-  // Get field type for API
+  // Get field type
   function getFieldType(element) {
     const tagName = element.tagName.toLowerCase();
     const type = element.type?.toLowerCase();
     
     if (tagName === 'select') return 'select';
     if (tagName === 'textarea') return 'textarea';
-    if (type === 'radio') return 'radio';
-    if (type === 'checkbox') return 'checkbox';
     if (type === 'date') return 'date';
     return 'input';
   }
 
-  // Create the floating helper panel
+  // Create the helper panel
   function createHelperPanel() {
     helperPanel = document.createElement('div');
     helperPanel.id = 'gov-helper-panel';
     helperPanel.className = 'gov-helper-panel';
     helperPanel.innerHTML = getPanelHTML();
     document.body.appendChild(helperPanel);
-
-    // Attach event listeners
     helperPanel.querySelector('.gov-helper-close-btn').addEventListener('click', closePanel);
   }
 
@@ -215,7 +354,7 @@
           </div>
           <div>
             <h3 class="gov-helper-title">Form Quick Guide</h3>
-            <p class="gov-helper-subtitle">Powered by AI</p>
+            <p class="gov-helper-subtitle">Click any field for help</p>
           </div>
         </div>
         <button class="gov-helper-close-btn" title="Close">
@@ -237,64 +376,40 @@
             </svg>
           </div>
           <h4>Ready to Help!</h4>
-          <p>Click on any form field to get instant guidance.</p>
+          <p>Click on any form field to see available options.</p>
         </div>
       </div>
       <div class="gov-helper-footer">
-        <p>Click any field for guidance</p>
+        <p id="gov-helper-footer-text">Click any field for guidance</p>
       </div>
     `;
   }
 
-  // Extract the label text for a form field
+  // Extract field label
   function extractFieldLabel(element) {
     let label = '';
 
-    // Method 1: Check for associated label element
     if (element.id) {
       const labelEl = document.querySelector(`label[for="${element.id}"]`);
-      if (labelEl) {
-        label = labelEl.textContent;
-      }
+      if (labelEl) label = labelEl.textContent;
     }
 
-    // Method 2: Check parent label
     if (!label) {
       const parentLabel = element.closest('label');
-      if (parentLabel) {
-        label = parentLabel.textContent;
-      }
+      if (parentLabel) label = parentLabel.textContent;
     }
 
-    // Method 3: For radio buttons, get the group label
     if (!label && element.type === 'radio') {
       const name = element.name;
       if (name) {
-        // Look for a label or text near the radio group
-        const radioGroup = document.querySelectorAll(`input[name="${name}"]`);
-        if (radioGroup.length > 0) {
-          const firstRadio = radioGroup[0];
-          const container = firstRadio.closest('td, div, fieldset');
-          if (container) {
-            // Try to find legend or nearby label
-            const legend = container.querySelector('legend');
-            if (legend) {
-              label = legend.textContent;
-            } else {
-              // Get the specific option label for this radio
-              const optionLabel = element.closest('label')?.textContent || 
-                                  element.nextSibling?.textContent ||
-                                  element.parentElement?.textContent;
-              if (optionLabel) {
-                label = `Option: ${optionLabel.trim()}`;
-              }
-            }
-          }
+        const container = element.closest('td, div, fieldset, tr');
+        if (container) {
+          const legend = container.querySelector('legend');
+          if (legend) label = legend.textContent;
         }
       }
     }
 
-    // Method 4: Check previous sibling or parent's previous sibling (table layouts)
     if (!label) {
       const row = element.closest('tr');
       if (row) {
@@ -308,7 +423,6 @@
       }
     }
 
-    // Method 5: Check for nearby text in same cell
     if (!label) {
       const cell = element.closest('td, th');
       if (cell) {
@@ -316,91 +430,55 @@
           .filter(node => node.nodeType === Node.TEXT_NODE)
           .map(node => node.textContent.trim())
           .filter(text => text.length > 0);
-        if (textNodes.length > 0) {
-          label = textNodes[0];
-        }
+        if (textNodes.length > 0) label = textNodes[0];
       }
     }
 
-    // Method 6: Check for nearby text nodes in parent
     if (!label) {
-      const parent = element.parentElement;
-      if (parent) {
-        const textNodes = Array.from(parent.childNodes)
-          .filter(node => node.nodeType === Node.TEXT_NODE)
-          .map(node => node.textContent.trim())
-          .filter(text => text.length > 0);
-        if (textNodes.length > 0) {
-          label = textNodes[0];
-        }
-      }
+      label = element.placeholder || element.title || element.getAttribute('aria-label') || formatNameAttribute(element.name) || '';
     }
 
-    // Method 7: Use placeholder, name, or title attribute
-    if (!label) {
-      label = element.placeholder || 
-              element.title || 
-              element.getAttribute('aria-label') || 
-              formatNameAttribute(element.name) || 
-              '';
-    }
-
-    // Clean up the label
     return cleanLabel(label);
   }
 
-  // Format name attribute to readable label
   function formatNameAttribute(name) {
     if (!name) return '';
-    return name
-      .replace(/[_-]/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/\b\w/g, l => l.toUpperCase());
+    return name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  // Clean up label text
   function cleanLabel(label) {
-    return label
-      .replace(/\*/g, '')           // Remove asterisks
-      .replace(/:/g, '')            // Remove colons
-      .replace(/\s+/g, ' ')         // Normalize whitespace
-      .replace(/^\s+|\s+$/g, '')    // Trim
-      .substring(0, 100);           // Limit length
+    return label.replace(/\*/g, '').replace(/:/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '').substring(0, 100);
   }
 
-  // Show the helper panel
   function showPanel() {
     state.isPanelVisible = true;
     helperPanel.classList.add('visible');
   }
 
-  // Close the helper panel
   function closePanel() {
     state.isPanelVisible = false;
     helperPanel.classList.remove('visible');
     removeFieldHighlight();
   }
 
-  // Highlight the active field
   function highlightField(element) {
     removeFieldHighlight();
     element.classList.add('gov-helper-active-field');
   }
 
-  // Remove field highlight
   function removeFieldHighlight() {
     document.querySelectorAll('.gov-helper-active-field').forEach(el => {
       el.classList.remove('gov-helper-active-field');
     });
   }
 
-  // Update the panel content based on state
+  // Update panel content
   function updatePanelContent() {
     const contentEl = document.getElementById('gov-helper-content');
     const fieldIndicator = document.getElementById('gov-helper-field-indicator');
     const fieldName = document.getElementById('gov-helper-field-name');
+    const footerText = document.getElementById('gov-helper-footer-text');
 
-    // Update field indicator
     if (state.activeField) {
       fieldIndicator.style.display = 'block';
       fieldName.textContent = state.activeField;
@@ -408,20 +486,72 @@
       fieldIndicator.style.display = 'none';
     }
 
-    // Update content
     if (state.isLoading) {
       contentEl.innerHTML = getLoadingHTML();
+      footerText.textContent = 'Getting AI guidance...';
     } else if (state.error) {
       contentEl.innerHTML = getErrorHTML(state.error);
+      footerText.textContent = 'Error occurred';
+    } else if (state.isLocalResponse && state.localData) {
+      contentEl.innerHTML = getLocalResponseHTML(state.localData);
+      footerText.textContent = 'Options detected from form';
     } else if (state.response) {
-      contentEl.innerHTML = getResponseHTML(state.response);
-      attachOptionListeners();
+      contentEl.innerHTML = getAIResponseHTML(state.response);
+      footerText.textContent = 'AI-powered guidance';
     } else {
       contentEl.innerHTML = getIdleHTML();
+      footerText.textContent = 'Click any field for guidance';
     }
   }
 
-  // Get loading HTML
+  // Get LOCAL response HTML (dropdown/radio options from DOM)
+  function getLocalResponseHTML(data) {
+    const typeLabel = data.type === 'select' ? 'Dropdown Options' : 
+                      data.type === 'radio' ? 'Radio Options' : 'Checkbox';
+    const typeIcon = data.type === 'select' ? 
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>' :
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>';
+    
+    const optionsHTML = data.options.map(opt => `
+      <div class="gov-helper-local-option ${opt.selected ? 'selected' : ''}">
+        <div class="gov-helper-local-option-marker">${opt.selected ? '✓' : ''}</div>
+        <span>${escapeHTML(opt.label)}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="gov-helper-response">
+        <div class="gov-helper-card gov-helper-card-local">
+          <div class="gov-helper-card-header">
+            <div class="gov-helper-card-icon gov-helper-icon-green">
+              ${typeIcon}
+            </div>
+            <h4 class="gov-helper-card-title">${typeLabel}</h4>
+          </div>
+          <p class="gov-helper-hint">${escapeHTML(data.hint)}</p>
+          <div class="gov-helper-local-options">
+            ${optionsHTML}
+          </div>
+        </div>
+        <div class="gov-helper-tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span>Select an option from the form. No AI credits used.</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Get AI response HTML
+  function getAIResponseHTML(response) {
+    if (response.needs_interaction && response.clarification_question) {
+      return getInteractiveResponseHTML(response);
+    } else {
+      return getSimpleResponseHTML(response);
+    }
+  }
+
   function getLoadingHTML() {
     return `
       <div class="gov-helper-loading">
@@ -429,7 +559,7 @@
           <svg class="gov-helper-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
-          <span>Analyzing field...</span>
+          <span>Getting AI guidance...</span>
         </div>
         <div class="gov-helper-shimmer-container">
           <div class="gov-helper-shimmer"></div>
@@ -439,7 +569,6 @@
     `;
   }
 
-  // Get error HTML
   function getErrorHTML(error) {
     return `
       <div class="gov-helper-error">
@@ -455,7 +584,6 @@
     `;
   }
 
-  // Get idle state HTML
   function getIdleHTML() {
     return `
       <div class="gov-helper-idle-state">
@@ -466,21 +594,11 @@
           </svg>
         </div>
         <h4>Ready to Help!</h4>
-        <p>Click on any form field to get instant guidance.</p>
+        <p>Click on any form field to see options or get guidance.</p>
       </div>
     `;
   }
 
-  // Get response HTML
-  function getResponseHTML(response) {
-    if (response.needs_interaction && response.clarification_question) {
-      return getInteractiveResponseHTML(response);
-    } else {
-      return getSimpleResponseHTML(response);
-    }
-  }
-
-  // Get interactive response HTML (with question options)
   function getInteractiveResponseHTML(response) {
     const optionsHTML = (response.question_options || []).map((opt, idx) => `
       <button class="gov-helper-option" data-value="${opt.value}" data-recommendation="${escapeHTML(opt.recommendation)}">
@@ -518,18 +636,6 @@
           </div>
         </div>
         
-        <div class="gov-helper-card gov-helper-card-advice">
-          <div class="gov-helper-card-header">
-            <div class="gov-helper-card-icon gov-helper-icon-gray">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-              </svg>
-            </div>
-            <h4 class="gov-helper-card-title">Additional Context</h4>
-          </div>
-          <p class="gov-helper-card-text">${escapeHTML(response.advice)}</p>
-        </div>
-        
         <div class="gov-helper-card gov-helper-card-warning">
           <div class="gov-helper-card-header">
             <div class="gov-helper-card-icon gov-helper-icon-orange">
@@ -546,7 +652,6 @@
     `;
   }
 
-  // Get simple response HTML (advice only)
   function getSimpleResponseHTML(response) {
     return `
       <div class="gov-helper-response">
@@ -579,7 +684,7 @@
     `;
   }
 
-  // Attach event listeners to option buttons
+  // Attach option listeners
   function attachOptionListeners() {
     const options = helperPanel.querySelectorAll('.gov-helper-option');
     options.forEach(option => {
@@ -587,17 +692,10 @@
     });
   }
 
-  // Handle option selection
   function handleOptionSelect(optionEl) {
-    // Remove previous selection
-    helperPanel.querySelectorAll('.gov-helper-option').forEach(opt => {
-      opt.classList.remove('selected');
-    });
-
-    // Add selection to clicked option
+    helperPanel.querySelectorAll('.gov-helper-option').forEach(opt => opt.classList.remove('selected'));
     optionEl.classList.add('selected');
-
-    // Show recommendation
+    
     const recommendation = optionEl.dataset.recommendation;
     const recommendationEl = document.getElementById('gov-helper-recommendation');
     const recommendationText = document.getElementById('gov-helper-recommendation-text');
@@ -608,7 +706,6 @@
     }
   }
 
-  // Escape HTML to prevent XSS
   function escapeHTML(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -616,18 +713,12 @@
     return div.innerHTML;
   }
 
-  // Observe DOM changes for dynamically added fields
-  function observeDOMChanges() {
-    const observer = new MutationObserver((mutations) => {
-      // DOM changed, listeners are already global so no action needed
-    });
+  // Re-attach option listeners after content update
+  const originalUpdatePanelContent = updatePanelContent;
+  updatePanelContent = function() {
+    originalUpdatePanelContent();
+    attachOptionListeners();
+  };
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-
-  // Start the extension
   init();
 })();
