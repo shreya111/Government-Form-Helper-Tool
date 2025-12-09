@@ -54,7 +54,8 @@ class QuestionOption(BaseModel):
     recommendation: Optional[str] = None
 
 class FormHelpResponse(BaseModel):
-    clarification_question: str
+    needs_interaction: bool = False
+    clarification_question: Optional[str] = None
     question_options: List[QuestionOption] = []
     advice: str
     warning: str
