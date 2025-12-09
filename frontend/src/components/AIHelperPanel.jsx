@@ -1,4 +1,5 @@
-import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Bot, X, MessageCircleQuestion, Lightbulb, AlertTriangle, Loader2, CheckCircle2, ChevronRight } from "lucide-react";
 
 const ShimmerCard = () => (
   <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm mb-4">
@@ -16,14 +17,90 @@ const ShimmerLoader = () => (
   </div>
 );
 
+const QuestionOptionButton = ({ option, isSelected, onClick }) => (
+  <button
+    onClick={() => onClick(option)}
+    className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 group ${
+      isSelected 
+        ? 'border-[#3498db] bg-[#3498db]/5' 
+        : 'border-slate-200 hover:border-[#3498db]/50 hover:bg-slate-50'
+    }`}
+    data-testid={`option-${option.value}`}
+  >
+    <div className="flex items-start gap-3">
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors duration-200 ${
+        isSelected 
+          ? 'border-[#3498db] bg-[#3498db]' 
+          : 'border-slate-300 group-hover:border-[#3498db]/50'
+      }`}>
+        {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+      </div>
+      <div className="flex-1">
+        <p className={`text-sm font-medium ${
+          isSelected ? 'text-[#3498db]' : 'text-[#2c3e50]'
+        }`}>
+          {option.label}
+        </p>
+      </div>
+    </div>
+  </button>
+);
+
+const RecommendationBadge = ({ recommendation }) => (
+  <div className="mt-4 p-4 bg-gradient-to-r from-[#27ae60]/10 to-[#27ae60]/5 rounded-xl border border-[#27ae60]/20" data-testid="recommendation-badge">
+    <div className="flex items-start gap-3">
+      <div className="bg-[#27ae60] p-1.5 rounded-lg shrink-0">
+        <ChevronRight className="w-4 h-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xs font-bold text-[#27ae60] uppercase tracking-wider mb-1">Recommendation</p>
+        <p className="text-sm font-semibold text-[#2c3e50]">{recommendation}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const InteractiveQuestionCard = ({ question, options, onOptionSelect, selectedOption }) => (
+  <div 
+    className="rounded-xl border border-slate-100 border-l-4 border-l-[#3498db] bg-white p-5 shadow-sm card-animate"
+    data-testid="ai-card-question"
+  >
+    <div className="flex items-start gap-3 mb-4">
+      <div className="bg-[#3498db]/10 p-2 rounded-lg shrink-0">
+        <MessageCircleQuestion className="w-4 h-4 text-[#3498db]" />
+      </div>
+      <div className="flex-1">
+        <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-[#3498db]">
+          Quick Question
+        </h4>
+        <p className="text-sm text-[#2c3e50] leading-relaxed font-semibold">
+          {question}
+        </p>
+      </div>
+    </div>
+    
+    {options && options.length > 0 && (
+      <div className="space-y-2 mt-4">
+        <p className="text-xs text-slate-500 font-medium mb-2">Select your answer:</p>
+        {options.map((option, index) => (
+          <QuestionOptionButton
+            key={option.value || index}
+            option={option}
+            isSelected={selectedOption?.value === option.value}
+            onClick={onOptionSelect}
+          />
+        ))}
+      </div>
+    )}
+    
+    {selectedOption?.recommendation && (
+      <RecommendationBadge recommendation={selectedOption.recommendation} />
+    )}
+  </div>
+);
+
 const ResponseCard = ({ type, title, content, icon: Icon, delay = 0 }) => {
   const variants = {
-    question: {
-      borderClass: "border-l-4 border-l-[#3498db] bg-blue-50/30",
-      iconBg: "bg-[#3498db]/10",
-      iconColor: "text-[#3498db]",
-      titleColor: "text-[#3498db]"
-    },
     advice: {
       borderClass: "border-l-4 border-l-slate-400 bg-slate-50",
       iconBg: "bg-slate-100",
@@ -88,6 +165,17 @@ const ErrorState = ({ error }) => (
 );
 
 const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, error }) => {
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  const handleOptionSelect = (option) => {
+    setSelectedOption(option);
+  };
+
+  // Reset selected option when response changes
+  if (response && selectedOption && response.field_label !== activeField) {
+    setSelectedOption(null);
+  }
+
   if (!isVisible) return null;
 
   return (
@@ -102,7 +190,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Form Assistant</h3>
+            <h3 className="text-sm font-bold text-white">Form Quick Guide</h3>
             <p className="text-xs text-white/60">Powered by Gemini AI</p>
           </div>
         </div>
@@ -137,13 +225,15 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           <ErrorState error={error} />
         ) : response ? (
           <div className="p-5 space-y-4">
-            <ResponseCard
-              type="question"
-              title="Clarification Question"
-              content={response.clarification_question}
-              icon={MessageCircleQuestion}
-              delay={100}
+            {/* Interactive Question Card */}
+            <InteractiveQuestionCard
+              question={response.clarification_question}
+              options={response.question_options}
+              onOptionSelect={handleOptionSelect}
+              selectedOption={selectedOption}
             />
+            
+            {/* Advice Card */}
             <ResponseCard
               type="advice"
               title="Expert Advice"
@@ -151,6 +241,8 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
               icon={Lightbulb}
               delay={200}
             />
+            
+            {/* Warning Card */}
             <ResponseCard
               type="warning"
               title="Common Mistake to Avoid"
@@ -167,9 +259,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
       {/* Footer */}
       <div className="border-t border-slate-200 px-5 py-4 bg-slate-50 shrink-0">
         <p className="text-xs text-slate-400 text-center">
-          Guidance based on official form requirements.
-          <br />
-          Always verify with official sources.
+          Answer the question above to get<br />personalized recommendations.
         </p>
       </div>
     </div>
