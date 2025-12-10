@@ -232,16 +232,45 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
         </button>
       </div>
 
-      {/* Field Indicator */}
-      {activeField && (
-        <div className="bg-gradient-to-r from-blue-500/10 to-emerald-500/10 border-b border-white/10 px-5 py-3">
-          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">Question</p>
-          <p className="text-sm font-medium text-white">{activeField}</p>
-        </div>
-      )}
+      {/* Tab Switcher */}
+      <div className="flex bg-black/20 border-b border-white/10">
+        <button
+          onClick={() => setActiveTab('field-help')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'field-help' 
+              ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' 
+              : 'border-transparent text-white/40 hover:text-white/60 hover:bg-white/5'
+          }`}
+        >
+          <Circle className="w-4 h-4" />
+          <span>Field Help</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'chat' 
+              ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' 
+              : 'border-transparent text-white/40 hover:text-white/60 hover:bg-white/5'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Chat</span>
+        </button>
+      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5">
+      {/* Field Help Tab */}
+      {activeTab === 'field-help' && (
+        <>
+          {/* Field Indicator */}
+          {activeField && (
+            <div className="bg-gradient-to-r from-blue-500/10 to-emerald-500/10 border-b border-white/10 px-5 py-3">
+              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">Question</p>
+              <p className="text-sm font-medium text-white">{activeField}</p>
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5">
         {isLoading ? (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
