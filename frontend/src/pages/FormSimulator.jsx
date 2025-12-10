@@ -520,20 +520,6 @@ const FormSimulator = () => {
       setIsPanelVisible(true);
       setError(null);
       
-      const optionKey = FIELD_TO_OPTIONS[fieldLabel];
-      if (optionKey && FORM_OPTIONS[optionKey]) {
-        setIsLoading(false);
-        setAiResponse(null);
-        setLocalData({
-          type: 'select',
-          fieldLabel: fieldLabel,
-          options: FORM_OPTIONS[optionKey].map(opt => ({ ...opt, selected: false })),
-          hint: 'Select one of the available options below:'
-        });
-        lastRequestedField.current = fieldLabel;
-        return;
-      }
-      
       if (lastRequestedField.current === fieldLabel && aiResponse && !error) {
         return;
       }
