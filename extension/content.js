@@ -905,30 +905,6 @@
   function getResponseHTML() {
     let html = '';
     
-    // Show detected options
-    if (state.detectedOptions && state.detectedOptions.length > 0) {
-      html += `
-        <div class="gov-helper-card gov-helper-card-options">
-          <div class="gov-helper-card-header">
-            <span class="gov-helper-card-icon blue">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-            </span>
-            <span class="gov-helper-card-title">Available Options</span>
-          </div>
-          <div class="gov-helper-options-list">
-            ${state.detectedOptions.map(opt => `
-              <div class="gov-helper-option-item ${opt.selected ? 'selected' : ''}">
-                <span class="gov-helper-option-marker">${opt.selected ? '✓' : '○'}</span>
-                <span>${escapeHTML(opt.label)}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
-    
     // Show AI guidance
     const r = state.response;
     if (r.needs_interaction && r.question_options?.length > 0) {
