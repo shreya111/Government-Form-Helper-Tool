@@ -465,3 +465,240 @@
 .gov-helper-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Tab Switcher */
+.gov-helper-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gov-helper-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--gh-text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.gov-helper-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--gh-text-muted);
+}
+
+.gov-helper-tab.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-bottom-color: var(--gh-green);
+  color: var(--gh-green);
+}
+
+.gov-helper-tab svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tab Content */
+.gov-helper-tab-content {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gov-helper-tab-content.active {
+  display: flex;
+}
+
+/* Chat UI */
+#chat-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.gov-helper-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gov-helper-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gov-helper-chat-messages::-webkit-scrollbar-thumb {
+  background: var(--gh-border);
+  border-radius: 3px;
+}
+
+.gov-helper-chat-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.gov-helper-chat-welcome h4 {
+  margin: 16px 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gh-text);
+}
+
+.gov-helper-chat-welcome p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--gh-text-dim);
+  line-height: 1.5;
+}
+
+.gov-helper-chat-message {
+  display: flex;
+  margin-bottom: 8px;
+  animation: gh-fade-in 0.2s ease-in;
+}
+
+@keyframes gh-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gov-helper-chat-message.user {
+  justify-content: flex-end;
+}
+
+.gov-helper-chat-message.assistant {
+  justify-content: flex-start;
+}
+
+.gov-helper-chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.gov-helper-chat-message.user .gov-helper-chat-bubble {
+  background: linear-gradient(135deg, var(--gh-blue), var(--gh-green));
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.gov-helper-chat-message.assistant .gov-helper-chat-bubble {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  color: var(--gh-text);
+  border-bottom-left-radius: 4px;
+}
+
+.gov-helper-chat-bubble.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gh-text-muted);
+}
+
+.gov-helper-chat-bubble.loading span {
+  font-size: 13px;
+}
+
+.gov-helper-chat-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  color: var(--gh-red);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.gov-helper-chat-input-container {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--gh-border);
+}
+
+.gov-helper-chat-input {
+  flex: 1;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--gh-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  max-height: 120px;
+  min-height: 44px;
+  line-height: 1.4;
+  transition: all 0.2s;
+}
+
+.gov-helper-chat-input:focus {
+  outline: none;
+  border-color: var(--gh-green);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gov-helper-chat-input::placeholder {
+  color: var(--gh-text-dim);
+}
+
+.gov-helper-chat-send {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--gh-blue), var(--gh-green));
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.gov-helper-chat-send:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.gov-helper-chat-send:active {
+  transform: scale(0.95);
+}
+
+.gov-helper-chat-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gov-helper-chat-send:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
