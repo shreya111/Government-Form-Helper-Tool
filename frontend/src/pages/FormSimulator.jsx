@@ -153,9 +153,62 @@ const SectionHeader = ({ title, subtitle }) => (
   </div>
 );
 
-// AI Helper Panel - Glassmorphic Style
+// AI Helper Panel - Glassmorphic Style with Chat
 const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, error, localData }) => {
   const [selectedOption, setSelectedOption] = useState(null);
+  const [activeTab, setActiveTab] = useState('field-help');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatError, setChatError] = useState(null);
+  const chatMessagesRef = useRef(null);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatLoading]);
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsChatLoading(true);
+    setChatError(null);
+
+    try {
+      // Extract page context
+      const pageContext = {
+        page_title: document.title,
+        page_url: window.location.href,
+        page_text: document.body.innerText.substring(0, 8000),
+        form_data: {}
+      };
+
+      const resp = await axios.post(`${API}/chat`, {
+        message: userMessage,
+        page_context: pageContext,
+        chat_history: chatMessages.slice(-10)
+      });
+
+      setChatMessages(prev => [...prev, { role: 'assistant', content: resp.data.response }]);
+    } catch (err) {
+      console.error('Chat error:', err);
+      setChatError('Unable to get response. Please try again.');
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   if (!isVisible) return null;
 
