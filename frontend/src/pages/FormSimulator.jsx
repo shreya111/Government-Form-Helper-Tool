@@ -413,6 +413,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           </div>
         )}
       </div>
+        </>
       )}
 
       {/* Chat Tab */}
