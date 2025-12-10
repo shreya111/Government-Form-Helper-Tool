@@ -547,7 +547,181 @@
     helperPanel.className = 'gov-helper-panel';
     helperPanel.innerHTML = getPanelHTML();
     document.body.appendChild(helperPanel);
+    
+    // Attach event listeners
     helperPanel.querySelector('.gov-helper-close-btn').addEventListener('click', closePanel);
+    
+    // Tab switcher
+    helperPanel.querySelectorAll('.gov-helper-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+    
+    // Chat input and send button
+    const chatInput = helperPanel.querySelector('#chat-input');
+    const sendBtn = helperPanel.querySelector('#chat-send-btn');
+    
+    if (chatInput && sendBtn) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+      
+      chatInput.addEventListener('input', (e) => {
+        // Auto-resize textarea
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+      });
+      
+      sendBtn.addEventListener('click', sendChatMessage);
+    }
+  }
+
+  // Switch between tabs
+  function switchTab(tabName) {
+    state.activeTab = tabName;
+    
+    // Update tab buttons
+    helperPanel.querySelectorAll('.gov-helper-tab').forEach(tab => {
+      if (tab.dataset.tab === tabName) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+    
+    // Update tab content
+    const fieldHelpContent = helperPanel.querySelector('#field-help-content');
+    const chatContent = helperPanel.querySelector('#chat-content');
+    
+    if (tabName === 'field-help') {
+      fieldHelpContent.classList.add('active');
+      chatContent.classList.remove('active');
+    } else {
+      fieldHelpContent.classList.remove('active');
+      chatContent.classList.add('active');
+      renderChatMessages();
+    }
+  }
+
+  // Send chat message
+  async function sendChatMessage() {
+    const chatInput = helperPanel.querySelector('#chat-input');
+    const message = chatInput.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message to state
+    state.chatMessages.push({
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Clear input
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    
+    // Update UI
+    state.isChatLoading = true;
+    state.chatError = null;
+    renderChatMessages();
+    
+    try {
+      // Extract page context
+      const pageContext = extractPageContext();
+      
+      // Send to backend
+      const response = await chrome.runtime.sendMessage({
+        type: 'SEND_CHAT_MESSAGE',
+        payload: {
+          message: message,
+          pageContext: pageContext,
+          chatHistory: state.chatMessages.slice(-10) // Last 10 messages
+        }
+      });
+      
+      if (response.success) {
+        // Add AI response to state
+        state.chatMessages.push({
+          role: 'assistant',
+          content: response.data.response,
+          timestamp: response.data.timestamp
+        });
+        
+        // Save to storage
+        await saveChatHistory();
+      } else {
+        state.chatError = response.error || 'Failed to get response';
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      state.chatError = 'Unable to connect to AI service';
+    }
+    
+    state.isChatLoading = false;
+    renderChatMessages();
+  }
+
+  // Render chat messages
+  function renderChatMessages() {
+    const chatMessagesContainer = helperPanel.querySelector('#chat-messages');
+    if (!chatMessagesContainer) return;
+    
+    if (state.chatMessages.length === 0) {
+      chatMessagesContainer.innerHTML = `
+        <div class="gov-helper-chat-welcome">
+          <div class="gov-helper-idle-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <h4>Ask Me Anything!</h4>
+          <p>I can help you with questions about this form, required documents, eligibility, or any confusing terms.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let html = '';
+    state.chatMessages.forEach(msg => {
+      const isUser = msg.role === 'user';
+      html += `
+        <div class="gov-helper-chat-message ${isUser ? 'user' : 'assistant'}">
+          <div class="gov-helper-chat-bubble">
+            ${escapeHTML(msg.content)}
+          </div>
+        </div>
+      `;
+    });
+    
+    if (state.isChatLoading) {
+      html += `
+        <div class="gov-helper-chat-message assistant">
+          <div class="gov-helper-chat-bubble loading">
+            <div class="gov-helper-loading-spinner"></div>
+            <span>Thinking...</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    if (state.chatError) {
+      html += `
+        <div class="gov-helper-chat-error">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+          </svg>
+          <span>${escapeHTML(state.chatError)}</span>
+        </div>
+      `;
+    }
+    
+    chatMessagesContainer.innerHTML = html;
+    
+    // Scroll to bottom
+    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
   }
 
   function getPanelHTML() {
