@@ -1,105 +1,100 @@
-# Government Form Helper - Chrome Extension
+# Government Form Helper Chrome Extension
 
-AI-powered assistant for filling Indian government forms, especially the Passport Seva portal.
+AI-powered assistant for filling out Indian government forms, with a focus on the Passport Seva portal.
 
 ## Features
 
-- **Real-time Field Detection**: Automatically detects form fields on government websites
-- **Smart AI Guidance**: Intelligently decides whether to ask clarifying questions or provide direct advice
-- **Interactive Questions**: For complex fields like ECR/ECNR, shows clickable options with recommendations
-- **Simple Advice**: For straightforward fields like names, provides direct guidance
-- **Warning Alerts**: Highlights common mistakes to avoid
+### 🎯 Field Help Tab
+- **Real-time Field Detection**: Automatically detects form fields when you click or focus on them
+- **Smart Context Extraction**: Intelligently extracts questions and labels from complex government website DOM structures
+- **Local Options Display**: For dropdowns and radio buttons, instantly shows available options without using AI credits
+- **AI-Powered Guidance**: For text fields and complex choices, provides contextual advice and interactive recommendations
+- **Interactive Questions**: For fields requiring clarification, asks questions to understand your situation and recommends the best option
+
+### 💬 Chat Tab (NEW!)
+- **Ask Anything**: General Q&A about the form, eligibility, documents, or confusing terms
+- **Full Page Context**: AI has access to all visible text, form fields, instructions, and terms on the current page
+- **Persistent Conversations**: Chat history is saved per website and persists throughout your session
+- **Smart Recommendations**: Get guidance on requirements, document lists, and application processes
 
 ## Installation
 
-### Method 1: Load Unpacked Extension (Developer Mode)
-
-1. **Download the extension folder** or clone this repository
-
-2. **Open Chrome Extensions page**:
-   - Type `chrome://extensions/` in your address bar
-   - Or go to Menu → More Tools → Extensions
-
-3. **Enable Developer Mode**:
-   - Toggle the "Developer mode" switch in the top-right corner
-
-4. **Load the extension**:
-   - Click "Load unpacked" button
-   - Select the `extension` folder containing these files
-
-5. **Done!** The extension icon should appear in your toolbar
-
-### Method 2: Pack as .crx file
-
-1. On the Extensions page, click "Pack extension"
-2. Select this folder as the extension root directory
-3. Chrome will create a .crx file you can distribute
+1. Download the extension: `government-form-helper-extension.zip`
+2. Extract the ZIP file to a folder
+3. Open Chrome and go to `chrome://extensions/`
+4. Enable "Developer mode" (toggle in top-right corner)
+5. Click "Load unpacked" and select the extracted extension folder
+6. The extension icon will appear in your Chrome toolbar
 
 ## Usage
 
-1. **Navigate to Passport Seva portal**: https://services1.passportindia.gov.in/forms/PreLogin
+### Using Field Help
 
-2. **Look for "Help" buttons**: Next to each form field, you'll see a blue "Help" button
+1. Navigate to the Passport Seva portal (or any supported government form website)
+2. Click on any form field (input, select, textarea)
+3. The AI helper panel will slide in from the right
+4. View the detected question/label at the top
+5. See AI-powered guidance:
+   - **Dropdowns/Radio buttons**: See all options instantly (no AI call)
+   - **Text fields**: Get advice on what to enter
+   - **Complex fields**: Answer clarifying questions to get personalized recommendations
 
-3. **Click for guidance**: Click any "Help" button to open the AI assistant panel
+### Using Chat
 
-4. **For interactive fields** (like ECR/ECNR):
-   - Answer the quick question by selecting an option
-   - Get personalized recommendations
-
-5. **For simple fields** (like Name, Address):
-   - Get direct expert advice
-   - See common mistakes to avoid
-
-## Supported Websites
-
-- services1.passportindia.gov.in (Passport Seva Portal)
-- passportindia.gov.in
-
-The extension is designed to work with legacy table-based government form layouts.
-
-## Privacy
-
-- The extension only activates on supported government websites
-- Field labels and types are sent to our AI service for guidance
-- No personal data is collected or stored
+1. With the helper panel open, click the **"Chat"** tab at the top
+2. Type your question in the input box at the bottom
+3. Examples:
+   - "What documents do I need for a new passport?"
+   - "Am I eligible for ECNR status?"
+   - "What is the difference between re-issue and tatkal?"
+   - "What should I write in the employment field if I'm a freelancer?"
+4. The AI will respond based on the content and context of the current page
+5. Your chat history is saved per website and persists across page refreshes
 
 ## Technical Details
 
-- **Manifest Version**: 3 (latest Chrome extension standard)
-- **Backend**: FastAPI + Gemini AI
-- **API Endpoint**: https://formaid.preview.emergentagent.com/api
+- **Manifest Version**: 3
+- **Permissions**: 
+  - `activeTab`: To detect form fields on the current page
+  - `storage`: To save chat history locally
+- **Host Permissions**: 
+  - `*.passportindia.gov.in/*`
+  - `services1.passportindia.gov.in/*`
+- **AI Model**: Gemini 2.5 Flash for intelligent guidance and chat
+- **Architecture**:
+  - `content.js`: Injects UI, detects fields, extracts page context
+  - `background.js`: Service worker for API communication
+  - `styles.css`: Glassmorphic dark theme UI
 
-## Troubleshooting
+## Features by Tab
 
-**Help buttons not appearing?**
-- Refresh the page after installing the extension
-- Make sure you're on a supported website
-- Check if the extension is enabled in chrome://extensions
+### Field Help Tab
+- Auto-triggers on field focus/click
+- Shows detected question
+- Displays available options for select/radio
+- Provides AI guidance for text fields
+- Interactive questions with recommendations
+- Warning messages about common mistakes
 
-**Panel not opening?**
-- Check your browser console for errors
-- Ensure the extension has permission for the website
+### Chat Tab
+- Welcome screen with helpful prompts
+- Chat message history with user/assistant bubbles
+- Real-time page context extraction (form data + all visible text)
+- Loading indicator while AI thinks
+- Auto-scroll to latest message
+- Persistent history per domain
 
-**AI responses slow?**
-- The AI service may take a few seconds to respond
-- Check your internet connection
+## Privacy & Data
 
-## Files
+- **Local Storage Only**: Chat history is stored locally in your browser using Chrome's storage API
+- **Page Context**: The extension reads visible text and form data on the current page to provide contextual assistance
+- **API Calls**: Field help and chat queries are sent to the backend API for AI processing
+- **No Personal Data Collection**: We do not collect or store your personal information from the forms
 
-```
-extension/
-├── manifest.json      # Extension configuration
-├── background.js      # Service worker for API calls
-├── content.js         # Injected script for field detection
-├── styles.css         # Panel and button styling
-├── icons/
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-└── README.md          # This file
-```
+## Support
 
-## License
+For issues, questions, or feature requests, please visit the project repository or contact support.
 
-MIT License - Feel free to modify and distribute.
+## Version
+
+**v1.1.0** - Added Chat feature with full page context awareness and session persistence
