@@ -413,6 +413,85 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* Chat Tab */}
+      {activeTab === 'chat' && (
+        <>
+          <div className="flex-1 flex flex-column overflow-hidden">
+            {/* Chat Messages */}
+            <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-5 space-y-3">
+              {chatMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="bg-white/5 p-5 rounded-2xl mb-4">
+                    <MessageSquare className="w-10 h-10 text-white/30" />
+                  </div>
+                  <h4 className="text-lg font-bold text-white mb-2">Ask Me Anything!</h4>
+                  <p className="text-sm text-white/50 max-w-[280px]">
+                    I can help you with questions about this form, required documents, eligibility, or any confusing terms.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap ${
+                          msg.role === 'user'
+                            ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white rounded-br-sm'
+                            : 'bg-white/5 border border-white/10 text-white/80 rounded-bl-sm'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {isChatLoading && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] px-4 py-3 rounded-2xl bg-white/5 border border-white/10 rounded-bl-sm flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                        <span className="text-sm text-white/60">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                  {chatError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>{chatError}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-4 bg-black/20 border-t border-white/10">
+              <div className="flex gap-2">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about the form..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 resize-none"
+                  rows={1}
+                  style={{ maxHeight: '120px' }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className="w-11 h-11 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center hover:shadow-lg hover:shadow-emerald-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <Send className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Footer */}
       <div className="border-t border-white/10 px-5 py-4 bg-slate-900/50">
