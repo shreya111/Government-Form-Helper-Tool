@@ -18,7 +18,13 @@
     selectedOption: null,
     error: null,
     detectedOptions: null,
-    detectedQuestion: null
+    detectedQuestion: null,
+    // Chat state
+    activeTab: 'field-help', // 'field-help' or 'chat'
+    chatMessages: [],
+    chatInput: '',
+    isChatLoading: false,
+    chatError: null
   };
 
   let helperPanel = null;
