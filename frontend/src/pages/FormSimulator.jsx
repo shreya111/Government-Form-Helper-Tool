@@ -290,36 +290,6 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
             <h4 className="text-lg font-bold text-white mb-2">Something went wrong</h4>
             <p className="text-sm text-white/50">{error}</p>
           </div>
-        ) : isLocalResponse ? (
-          <div className="space-y-4">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="bg-blue-500/20 p-2 rounded-lg">
-                  <ChevronDown className="w-4 h-4 text-blue-400" />
-                </div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Dropdown Options</span>
-              </div>
-              <p className="text-xs text-white/50 mb-3">{localData.hint}</p>
-              <div className="space-y-2">
-                {localData.options.map((opt, idx) => (
-                  <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border ${
-                    opt.selected ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-white/10 bg-white/5'
-                  }`}>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                      opt.selected ? 'bg-emerald-500 text-white' : 'border-2 border-white/20'
-                    }`}>
-                      {opt.selected && '✓'}
-                    </div>
-                    <span className="text-sm text-white/80">{opt.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl">
-              <Info className="w-4 h-4 text-white/40" />
-              <span className="text-xs text-white/40">Select an option from the form. No AI credits used.</span>
-            </div>
-          </div>
         ) : response ? (
           <div className="space-y-4">
             {response.needs_interaction && response.question_options?.length > 0 ? (
