@@ -73,6 +73,26 @@ class ChatHistory(BaseModel):
     response: dict
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class PageContext(BaseModel):
+    page_title: Optional[str] = ""
+    page_url: Optional[str] = ""
+    form_data: Optional[dict] = {}
+    page_text: Optional[str] = ""
+
+class ChatMessage(BaseModel):
+    role: str  # 'user' or 'assistant'
+    content: str
+    timestamp: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChatRequest(BaseModel):
+    message: str
+    page_context: PageContext
+    chat_history: List[ChatMessage] = []
+
+class ChatResponse(BaseModel):
+    response: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # LLM Chat setup
 def get_llm_chat(session_id: str) -> LlmChat:
     api_key = os.environ.get('EMERGENT_LLM_KEY')
