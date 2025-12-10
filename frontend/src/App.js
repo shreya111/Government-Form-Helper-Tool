@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LandingPage from "@/pages/LandingPage";
 import FormSimulator from "@/pages/FormSimulator";
 
 function App() {
@@ -8,7 +9,8 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<FormSimulator />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/demo" element={<FormSimulator />} />
         </Routes>
       </BrowserRouter>
     </div>
