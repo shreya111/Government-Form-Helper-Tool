@@ -521,6 +521,11 @@
   display: flex !important;
 }
 
+/* Field Help Tab */
+#field-help-content {
+  flex-direction: column;
+}
+
 /* Chat UI */
 #chat-content {
   flex-direction: column;
