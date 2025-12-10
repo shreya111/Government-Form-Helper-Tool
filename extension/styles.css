@@ -518,12 +518,11 @@
 }
 
 .gov-helper-tab-content.active {
-  display: flex;
+  display: flex !important;
 }
 
 /* Chat UI */
 #chat-content {
-  display: flex;
   flex-direction: column;
   height: 100%;
 }
