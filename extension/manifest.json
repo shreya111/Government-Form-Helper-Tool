@@ -10,7 +10,7 @@
   "host_permissions": [
     "*://*.passportindia.gov.in/*",
     "*://services1.passportindia.gov.in/*",
-    "https://egovhelper.preview.emergentagent.com/*"
+    "https://formaid.preview.emergentagent.com/*"
   ],
   "background": {
     "service_worker": "background.js"

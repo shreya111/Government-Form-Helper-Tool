@@ -1,6 +1,6 @@
 // Government Form Helper - Background Service Worker
 
-const API_BASE_URL = 'https://egovhelper.preview.emergentagent.com/api';
+const API_BASE_URL = 'https://formaid.preview.emergentagent.com/api';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'GET_FORM_HELP') {

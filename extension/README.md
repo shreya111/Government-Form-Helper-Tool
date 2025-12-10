@@ -68,7 +68,7 @@ The extension is designed to work with legacy table-based government form layout
 
 - **Manifest Version**: 3 (latest Chrome extension standard)
 - **Backend**: FastAPI + Gemini AI
-- **API Endpoint**: https://egovhelper.preview.emergentagent.com/api
+- **API Endpoint**: https://formaid.preview.emergentagent.com/api
 
 ## Troubleshooting
 
