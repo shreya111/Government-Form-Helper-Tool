@@ -39,6 +39,26 @@ async function fetchFormHelp(payload) {
   return response.json();
 }
 
+async function sendChatMessage(payload) {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: payload.message,
+      page_context: payload.pageContext,
+      chat_history: payload.chatHistory || []
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Government Form Helper installed:', details.reason);
 });
