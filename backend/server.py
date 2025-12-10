@@ -48,6 +48,7 @@ class StatusCheckCreate(BaseModel):
 class FormHelpRequest(BaseModel):
     field_label: str
     field_type: Optional[str] = "input"
+    field_options: Optional[str] = ""
     form_context: Optional[str] = "Indian Passport Application Form"
 
 class QuestionOption(BaseModel):
