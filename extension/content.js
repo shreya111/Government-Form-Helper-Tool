@@ -1,11 +1,10 @@
 // Government Form Helper - Content Script
-// Detects form fields, extracts questions, and provides AI guidance
+// Real-time DOM detection for Passport Seva and government forms
 
 (function() {
   'use strict';
 
   const CONFIG = {
-    panelWidth: 380,
     debounceDelay: 400,
     formContext: 'Indian Passport Application Form (Passport Seva Portal)'
   };
@@ -18,15 +17,15 @@
     response: null,
     selectedOption: null,
     error: null,
-    lastRequestedLabel: null,
-    detectedOptions: null
+    detectedOptions: null,
+    detectedQuestion: null
   };
 
   let helperPanel = null;
   let debounceTimer = null;
 
   function init() {
-    console.log('Government Form Helper: Initializing...');
+    console.log('Form Helper: Initializing real-time DOM detection...');
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', setup);
     } else {
@@ -37,46 +36,53 @@
   function setup() {
     createHelperPanel();
     attachGlobalListeners();
-    console.log('Government Form Helper: Ready - click any form field');
+    console.log('Form Helper: Ready - click any form field');
   }
 
   function attachGlobalListeners() {
-    document.addEventListener('focusin', handleFieldFocus, true);
-    document.addEventListener('click', handleFieldClick, true);
+    // Use capture phase to catch events early
+    document.addEventListener('focusin', handleFieldInteraction, true);
+    document.addEventListener('click', handleFieldInteraction, true);
+    document.addEventListener('change', handleFieldInteraction, true);
   }
 
-  function handleFieldFocus(event) {
+  function handleFieldInteraction(event) {
     const element = event.target;
+    
+    // Check if it's a form element
     if (isFormElement(element)) {
       triggerHelp(element);
-    }
-  }
-
-  function handleFieldClick(event) {
-    const element = event.target;
-    
-    if (element.type === 'radio' || element.type === 'checkbox') {
-      triggerHelp(element);
+      return;
     }
     
+    // Check if clicked on a label
     if (element.tagName.toLowerCase() === 'label') {
       const forId = element.getAttribute('for');
       if (forId) {
         const input = document.getElementById(forId);
-        if (input && isFormElement(input)) {
-          triggerHelp(input);
-        }
+        if (input) triggerHelp(input);
+      }
+      return;
+    }
+    
+    // Check if clicked inside a table cell containing form elements
+    const cell = element.closest('td, th');
+    if (cell) {
+      const formEl = cell.querySelector('input, select, textarea');
+      if (formEl && isFormElement(formEl)) {
+        triggerHelp(formEl);
       }
     }
   }
 
   function isFormElement(element) {
     if (!element || element.closest('#gov-helper-panel')) return false;
-    const tagName = element.tagName.toLowerCase();
+    const tagName = element.tagName?.toLowerCase();
     const type = element.type?.toLowerCase();
+    
     if (tagName === 'input') {
-      const excludedTypes = ['hidden', 'submit', 'button', 'reset', 'image'];
-      return !excludedTypes.includes(type);
+      const excluded = ['hidden', 'submit', 'button', 'reset', 'image'];
+      return !excluded.includes(type);
     }
     return tagName === 'select' || tagName === 'textarea';
   }
@@ -88,35 +94,40 @@
     }, CONFIG.debounceDelay);
   }
 
-  // Main function to process any field
+  // Main function - detect everything from DOM
   async function processField(element) {
-    const tagName = element.tagName.toLowerCase();
-    const type = element.type?.toLowerCase();
+    // Extract all information from DOM
+    const fieldInfo = extractFieldInfoFromDOM(element);
     
-    // Extract question/label and options
-    const fieldInfo = extractFieldInfo(element);
+    if (!fieldInfo.question || fieldInfo.question.length < 3) {
+      console.log('Form Helper: Could not detect question for field');
+      return;
+    }
     
-    if (!fieldInfo.label || fieldInfo.label.length < 2) return;
+    console.log('Form Helper: Detected -', fieldInfo);
     
-    state.activeField = fieldInfo.label;
+    state.activeField = fieldInfo.question;
     state.activeElement = element;
     state.detectedOptions = fieldInfo.options;
+    state.detectedQuestion = fieldInfo.question;
     state.isLoading = true;
     state.response = null;
     state.error = null;
+    state.selectedOption = null;
     
     showPanel();
     highlightField(element);
     updatePanelContent();
     
-    // Always call AI for guidance - it will provide advice on which option to select
+    // Call AI for guidance
     try {
+      const optionsText = fieldInfo.options.map(o => o.label).join(', ');
       const response = await chrome.runtime.sendMessage({
         type: 'GET_FORM_HELP',
         payload: {
-          fieldLabel: fieldInfo.label,
+          fieldLabel: fieldInfo.question,
           fieldType: fieldInfo.type,
-          fieldOptions: fieldInfo.options.map(o => o.label).join(', '),
+          fieldOptions: optionsText,
           formContext: CONFIG.formContext
         }
       });
@@ -127,7 +138,7 @@
         state.error = response.error || 'Failed to get guidance';
       }
     } catch (error) {
-      console.error('Government Form Helper: Error', error);
+      console.error('Form Helper: API Error', error);
       state.error = 'Unable to connect to AI service';
     }
     
@@ -135,294 +146,383 @@
     updatePanelContent();
   }
 
-  // Extract complete field information including question and options
-  function extractFieldInfo(element) {
+  // ========== DOM DETECTION FUNCTIONS ==========
+  
+  function extractFieldInfoFromDOM(element) {
     const tagName = element.tagName.toLowerCase();
     const type = element.type?.toLowerCase();
     
     let info = {
-      label: '',
+      question: '',
       type: 'input',
-      options: []
+      options: [],
+      fieldName: element.name || element.id || ''
     };
     
-    // Handle SELECT dropdowns
+    // Detect field type and options
     if (tagName === 'select') {
       info.type = 'select';
-      info.label = extractQuestionLabel(element);
-      info.options = Array.from(element.options)
-        .filter(opt => opt.value && opt.value.trim() !== '' && opt.value.toLowerCase() !== 'select')
-        .map(opt => ({
-          label: opt.textContent.trim(),
-          value: opt.value,
-          selected: opt.selected
-        }));
+      info.options = extractSelectOptions(element);
+      info.question = findQuestionForElement(element);
     }
-    // Handle RADIO buttons
     else if (type === 'radio') {
       info.type = 'radio';
-      info.label = extractRadioGroupQuestion(element);
-      info.options = extractRadioOptions(element);
+      info.options = extractRadioGroupOptions(element);
+      info.question = findRadioGroupQuestion(element);
     }
-    // Handle CHECKBOX
     else if (type === 'checkbox') {
       info.type = 'checkbox';
-      info.label = extractQuestionLabel(element);
-      info.options = [
-        { label: 'Yes', value: 'yes', selected: element.checked },
-        { label: 'No', value: 'no', selected: !element.checked }
-      ];
+      info.options = [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }];
+      info.question = findQuestionForElement(element);
     }
-    // Handle TEXT inputs
     else {
-      info.type = 'input';
-      info.label = extractQuestionLabel(element);
+      info.type = 'text';
+      info.question = findQuestionForElement(element);
     }
     
     return info;
   }
 
-  // Extract the question/label for radio button groups
-  function extractRadioGroupQuestion(radioElement) {
-    const name = radioElement.name;
-    let question = '';
-    
-    // Method 1: Look for text in the same table row before the radio buttons
-    const row = radioElement.closest('tr');
-    if (row) {
-      const cells = row.querySelectorAll('td');
-      for (let cell of cells) {
-        // Find cell with text that doesn't contain the radio button
-        if (!cell.contains(radioElement) || cell.querySelector('input[type="radio"]') === null) {
-          const text = cell.textContent.trim();
-          if (text.length > 5 && !text.match(/^(yes|no)$/i)) {
-            question = text;
-            break;
-          }
-        }
-      }
-      // Also check first cell specifically
-      if (!question && cells.length > 0) {
-        const firstCellText = cells[0].textContent.trim();
-        if (firstCellText.length > 5) {
-          question = firstCellText;
-        }
-      }
-    }
-    
-    // Method 2: Look for nearby label or text element
-    if (!question) {
-      const container = radioElement.closest('td, div, fieldset, p');
-      if (container) {
-        // Check for legend
-        const legend = container.querySelector('legend');
-        if (legend) {
-          question = legend.textContent.trim();
-        }
-        // Check for label
-        if (!question) {
-          const labels = container.querySelectorAll('label, span, b, strong');
-          for (let label of labels) {
-            const text = label.textContent.trim();
-            if (text.length > 10 && text.includes('?')) {
-              question = text;
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    // Method 3: Look at previous sibling elements
-    if (!question) {
-      let prevElement = radioElement.parentElement?.previousElementSibling;
-      while (prevElement && !question) {
-        const text = prevElement.textContent.trim();
-        if (text.length > 10) {
-          question = text;
-          break;
-        }
-        prevElement = prevElement.previousElementSibling;
-      }
-    }
-    
-    // Method 4: Search the entire row/container for question-like text
-    if (!question) {
-      const searchContainer = radioElement.closest('tr, div, fieldset') || radioElement.parentElement;
-      if (searchContainer) {
-        const allText = searchContainer.textContent;
-        // Find text that looks like a question (contains ? or ends with specific patterns)
-        const questionMatch = allText.match(/([^.!?]*\?)/g);
-        if (questionMatch && questionMatch[0]) {
-          question = questionMatch[0].trim();
-        }
-      }
-    }
-    
-    // Clean up and return
-    return cleanLabel(question || radioElement.name || 'Radio Selection');
+  // Extract options from SELECT element
+  function extractSelectOptions(selectEl) {
+    return Array.from(selectEl.options)
+      .filter(opt => {
+        const val = opt.value?.toLowerCase().trim();
+        const text = opt.textContent?.toLowerCase().trim();
+        // Filter out placeholder options
+        return val && val !== '' && val !== 'select' && val !== '-1' && 
+               text !== 'select' && text !== '--select--' && text !== 'please select';
+      })
+      .map(opt => ({
+        label: opt.textContent.trim(),
+        value: opt.value,
+        selected: opt.selected
+      }));
   }
 
   // Extract all radio options in a group
-  function extractRadioOptions(radioElement) {
-    const name = radioElement.name;
+  function extractRadioGroupOptions(radioEl) {
+    const name = radioEl.name;
     if (!name) return [];
     
     const radios = document.querySelectorAll(`input[type="radio"][name="${name}"]`);
     return Array.from(radios).map(radio => {
-      let optionLabel = '';
-      
-      // Check for associated label
-      if (radio.id) {
-        const labelEl = document.querySelector(`label[for="${radio.id}"]`);
-        if (labelEl) optionLabel = labelEl.textContent.trim();
-      }
-      
-      // Check parent label
-      if (!optionLabel) {
-        const parentLabel = radio.closest('label');
-        if (parentLabel) {
-          // Get only direct text, not nested elements
-          optionLabel = Array.from(parentLabel.childNodes)
-            .filter(n => n.nodeType === Node.TEXT_NODE)
-            .map(n => n.textContent.trim())
-            .join(' ').trim();
-          if (!optionLabel) {
-            optionLabel = parentLabel.textContent.trim();
-          }
-        }
-      }
-      
-      // Check next sibling
-      if (!optionLabel && radio.nextSibling) {
-        optionLabel = radio.nextSibling.textContent?.trim() || '';
-      }
-      
-      // Use value as fallback
-      if (!optionLabel) {
-        optionLabel = radio.value || 'Option';
-      }
-      
-      // Clean up common patterns
-      optionLabel = optionLabel.replace(/^\s*[-:]\s*/, '').trim();
-      
+      let label = findLabelForRadio(radio);
       return {
-        label: optionLabel,
+        label: label || radio.value,
         value: radio.value,
         selected: radio.checked
       };
-    }).filter(opt => opt.label && opt.label.length > 0);
+    }).filter(opt => opt.label);
   }
 
-  // Extract question/label for any form element
-  function extractQuestionLabel(element) {
-    let label = '';
-    
-    // Method 1: Associated label
-    if (element.id) {
-      const labelEl = document.querySelector(`label[for="${element.id}"]`);
-      if (labelEl) label = labelEl.textContent;
+  // Find label text for a single radio button
+  function findLabelForRadio(radio) {
+    // Method 1: Label with 'for' attribute
+    if (radio.id) {
+      const label = document.querySelector(`label[for="${radio.id}"]`);
+      if (label) return cleanText(label.textContent);
     }
     
     // Method 2: Parent label
-    if (!label) {
+    const parentLabel = radio.closest('label');
+    if (parentLabel) {
+      // Get text excluding the radio button itself
+      const clone = parentLabel.cloneNode(true);
+      clone.querySelectorAll('input').forEach(i => i.remove());
+      const text = cleanText(clone.textContent);
+      if (text) return text;
+    }
+    
+    // Method 3: Next sibling text
+    let sibling = radio.nextSibling;
+    while (sibling) {
+      if (sibling.nodeType === Node.TEXT_NODE) {
+        const text = cleanText(sibling.textContent);
+        if (text && text.length > 0) return text;
+      }
+      if (sibling.nodeType === Node.ELEMENT_NODE) {
+        const text = cleanText(sibling.textContent);
+        if (text && text.length > 0 && text.length < 50) return text;
+        break;
+      }
+      sibling = sibling.nextSibling;
+    }
+    
+    // Method 4: Adjacent span or label
+    const adjacent = radio.parentElement?.querySelector('span, label, font, b');
+    if (adjacent && !adjacent.contains(radio)) {
+      return cleanText(adjacent.textContent);
+    }
+    
+    return radio.value;
+  }
+
+  // Find the question/label for any form element
+  function findQuestionForElement(element) {
+    let question = '';
+    
+    // Method 1: Label with 'for' attribute
+    if (element.id) {
+      const label = document.querySelector(`label[for="${element.id}"]`);
+      if (label) question = cleanText(label.textContent);
+    }
+    
+    // Method 2: Parent label
+    if (!question) {
       const parentLabel = element.closest('label');
-      if (parentLabel) label = parentLabel.textContent;
-    }
-    
-    // Method 3: Table row - look for label in previous cells
-    if (!label) {
-      const row = element.closest('tr');
-      if (row) {
-        const cells = row.querySelectorAll('td, th');
-        for (let i = 0; i < cells.length; i++) {
-          if (cells[i].contains(element) && i > 0) {
-            label = cells[i - 1].textContent;
-            break;
-          }
-        }
-        // Check first cell
-        if (!label && cells.length > 0) {
-          const firstCell = cells[0];
-          if (!firstCell.contains(element)) {
-            label = firstCell.textContent;
-          }
-        }
+      if (parentLabel) {
+        const clone = parentLabel.cloneNode(true);
+        clone.querySelectorAll('input, select, textarea').forEach(el => el.remove());
+        question = cleanText(clone.textContent);
       }
     }
     
-    // Method 4: Previous sibling text
-    if (!label) {
-      const parent = element.parentElement;
-      if (parent) {
-        let prev = element.previousSibling;
-        while (prev) {
-          if (prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) {
-            label = prev.textContent;
-            break;
-          }
-          if (prev.nodeType === Node.ELEMENT_NODE) {
-            label = prev.textContent;
-            break;
-          }
-          prev = prev.previousSibling;
-        }
-      }
+    // Method 3: Table row - look in previous cells (government sites use tables)
+    if (!question) {
+      question = findQuestionInTableRow(element);
     }
     
-    // Method 5: Placeholder or name
-    if (!label) {
-      label = element.placeholder || element.title || element.getAttribute('aria-label') || formatName(element.name) || '';
+    // Method 4: Previous sibling elements
+    if (!question) {
+      question = findQuestionInSiblings(element);
     }
     
-    return cleanLabel(label);
+    // Method 5: Closest container with text
+    if (!question) {
+      question = findQuestionInContainer(element);
+    }
+    
+    // Method 6: Aria label or title
+    if (!question) {
+      question = element.getAttribute('aria-label') || 
+                 element.getAttribute('title') || 
+                 element.getAttribute('placeholder') ||
+                 formatFieldName(element.name);
+    }
+    
+    return question;
   }
 
-  function formatName(name) {
+  // Find question in table row (very common in government sites)
+  function findQuestionInTableRow(element) {
+    const row = element.closest('tr');
+    if (!row) return '';
+    
+    const cells = row.querySelectorAll('td, th');
+    const elementCell = element.closest('td, th');
+    
+    // Find the cell containing the element
+    let elementCellIndex = -1;
+    cells.forEach((cell, idx) => {
+      if (cell === elementCell || cell.contains(element)) {
+        elementCellIndex = idx;
+      }
+    });
+    
+    // Look in previous cells for the question
+    for (let i = elementCellIndex - 1; i >= 0; i--) {
+      const cellText = cleanText(cells[i].textContent);
+      // Skip cells that only have form elements
+      if (cellText && cellText.length > 2 && !cells[i].querySelector('input, select, textarea')) {
+        return cellText;
+      }
+      // Also check if cell has text alongside form elements
+      if (cellText && cellText.length > 10) {
+        // Get text without form element values
+        const clone = cells[i].cloneNode(true);
+        clone.querySelectorAll('input, select, textarea').forEach(el => el.remove());
+        const pureText = cleanText(clone.textContent);
+        if (pureText && pureText.length > 5) return pureText;
+      }
+    }
+    
+    // Sometimes question is in the same cell but before the element
+    if (elementCell) {
+      const clone = elementCell.cloneNode(true);
+      clone.querySelectorAll('input, select, textarea').forEach(el => el.remove());
+      const text = cleanText(clone.textContent);
+      if (text && text.length > 5) return text;
+    }
+    
+    return '';
+  }
+
+  // Find question for radio button groups (usually in a different location)
+  function findRadioGroupQuestion(radioEl) {
+    // Method 1: Check table row first cell
+    const row = radioEl.closest('tr');
+    if (row) {
+      const cells = row.querySelectorAll('td, th');
+      if (cells.length > 0) {
+        // First cell often has the question
+        const firstCellText = cleanText(cells[0].textContent);
+        // Make sure it's not just "Yes" or "No"
+        if (firstCellText && firstCellText.length > 5 && 
+            !firstCellText.match(/^(yes|no)$/i)) {
+          // Exclude the radio labels from the question
+          const radios = row.querySelectorAll('input[type="radio"]');
+          let questionText = firstCellText;
+          radios.forEach(r => {
+            const label = findLabelForRadio(r);
+            if (label) {
+              questionText = questionText.replace(label, '').trim();
+            }
+          });
+          if (questionText.length > 5) return questionText;
+          return firstCellText;
+        }
+      }
+    }
+    
+    // Method 2: Look for fieldset legend
+    const fieldset = radioEl.closest('fieldset');
+    if (fieldset) {
+      const legend = fieldset.querySelector('legend');
+      if (legend) return cleanText(legend.textContent);
+    }
+    
+    // Method 3: Previous row might have the question (spanning rows)
+    if (row) {
+      let prevRow = row.previousElementSibling;
+      while (prevRow && prevRow.tagName.toLowerCase() === 'tr') {
+        const text = cleanText(prevRow.textContent);
+        if (text && text.length > 10 && text.includes('?')) {
+          return text;
+        }
+        // Check if it's a header row
+        if (prevRow.querySelector('th')) {
+          return cleanText(prevRow.textContent);
+        }
+        prevRow = prevRow.previousElementSibling;
+      }
+    }
+    
+    // Method 4: Parent container text
+    const container = radioEl.closest('div, td, fieldset, p');
+    if (container) {
+      const clone = container.cloneNode(true);
+      clone.querySelectorAll('input').forEach(el => el.remove());
+      const text = cleanText(clone.textContent);
+      // Find question-like text
+      const questionMatch = text.match(/([^.]*\?)/);
+      if (questionMatch) return questionMatch[1].trim();
+      if (text.length > 10 && text.length < 200) return text;
+    }
+    
+    return formatFieldName(radioEl.name);
+  }
+
+  // Find question in sibling elements
+  function findQuestionInSiblings(element) {
+    const parent = element.parentElement;
+    if (!parent) return '';
+    
+    // Check previous siblings
+    let sibling = element.previousElementSibling;
+    while (sibling) {
+      if (!sibling.querySelector('input, select, textarea')) {
+        const text = cleanText(sibling.textContent);
+        if (text && text.length > 3 && text.length < 200) {
+          return text;
+        }
+      }
+      sibling = sibling.previousElementSibling;
+    }
+    
+    // Check text nodes before element
+    let node = element.previousSibling;
+    while (node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = cleanText(node.textContent);
+        if (text && text.length > 3) return text;
+      }
+      node = node.previousSibling;
+    }
+    
+    return '';
+  }
+
+  // Find question in container
+  function findQuestionInContainer(element) {
+    // Look up the DOM for labeled containers
+    const containers = ['div', 'p', 'span', 'td', 'fieldset'];
+    
+    for (let selector of containers) {
+      const container = element.closest(selector);
+      if (container) {
+        // Look for label-like elements
+        const labelEl = container.querySelector('label, .label, .field-label, b, strong, font');
+        if (labelEl && !labelEl.contains(element)) {
+          const text = cleanText(labelEl.textContent);
+          if (text && text.length > 3) return text;
+        }
+      }
+    }
+    
+    return '';
+  }
+
+  // ========== UTILITY FUNCTIONS ==========
+  
+  function cleanText(text) {
+    if (!text) return '';
+    return text
+      .replace(/[\r\n\t]+/g, ' ')  // Replace newlines/tabs with space
+      .replace(/\s+/g, ' ')         // Collapse multiple spaces
+      .replace(/^[\s:*]+/, '')      // Remove leading whitespace, colons, asterisks
+      .replace(/[\s:*]+$/, '')      // Remove trailing
+      .replace(/\*$/, '')           // Remove trailing asterisk
+      .trim()
+      .substring(0, 200);           // Limit length
+  }
+
+  function formatFieldName(name) {
     if (!name) return '';
-    return name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, l => l.toUpperCase());
+    return name
+      .replace(/[_-]/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  function cleanLabel(label) {
-    if (!label) return '';
-    return label
-      .replace(/\*/g, '')
-      .replace(/\s+/g, ' ')
-      .replace(/^\s+|\s+$/g, '')
-      .substring(0, 150);
-  }
-
-  // Create panel
+  // ========== UI FUNCTIONS ==========
+  
   function createHelperPanel() {
     helperPanel = document.createElement('div');
     helperPanel.id = 'gov-helper-panel';
     helperPanel.className = 'gov-helper-panel';
-    helperPanel.innerHTML = `
-      <div class="gov-helper-panel-header">
+    helperPanel.innerHTML = getPanelHTML();
+    document.body.appendChild(helperPanel);
+    helperPanel.querySelector('.gov-helper-close-btn').addEventListener('click', closePanel);
+  }
+
+  function getPanelHTML() {
+    return `
+      <div class="gov-helper-header">
         <div class="gov-helper-header-content">
-          <div class="gov-helper-avatar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="gov-helper-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
               <path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
             </svg>
           </div>
           <div>
-            <h3 class="gov-helper-title">Passport Quick Guide</h3>
+            <h3 class="gov-helper-title">Form Quick Guide</h3>
             <p class="gov-helper-subtitle">AI-Powered Assistance</p>
           </div>
         </div>
-        <button class="gov-helper-close-btn" title="Close">
+        <button class="gov-helper-close-btn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </button>
       </div>
-      <div class="gov-helper-field-indicator" id="gov-helper-field-indicator" style="display: none;">
-        <p class="gov-helper-field-label">Question</p>
-        <p class="gov-helper-field-name" id="gov-helper-field-name"></p>
+      <div class="gov-helper-question" id="gov-helper-question" style="display:none;">
+        <span class="gov-helper-question-label">Detected Question</span>
+        <p class="gov-helper-question-text" id="gov-helper-question-text"></p>
       </div>
       <div class="gov-helper-content" id="gov-helper-content">
-        <div class="gov-helper-idle-state">
+        <div class="gov-helper-idle">
           <div class="gov-helper-idle-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
@@ -430,15 +530,13 @@
             </svg>
           </div>
           <h4>Ready to Help!</h4>
-          <p>Click on any form field to get guidance on which option to select.</p>
+          <p>Click on any form field to get guidance.</p>
         </div>
       </div>
       <div class="gov-helper-footer">
-        <p id="gov-helper-footer-text">Click any field for guidance</p>
+        <p>AI-powered guidance</p>
       </div>
     `;
-    document.body.appendChild(helperPanel);
-    helperPanel.querySelector('.gov-helper-close-btn').addEventListener('click', closePanel);
   }
 
   function showPanel() {
@@ -449,84 +547,72 @@
   function closePanel() {
     state.isPanelVisible = false;
     helperPanel.classList.remove('visible');
-    removeFieldHighlight();
+    removeHighlight();
   }
 
   function highlightField(element) {
-    removeFieldHighlight();
-    element.classList.add('gov-helper-active-field');
+    removeHighlight();
+    element.classList.add('gov-helper-highlight');
   }
 
-  function removeFieldHighlight() {
-    document.querySelectorAll('.gov-helper-active-field').forEach(el => {
-      el.classList.remove('gov-helper-active-field');
+  function removeHighlight() {
+    document.querySelectorAll('.gov-helper-highlight').forEach(el => {
+      el.classList.remove('gov-helper-highlight');
     });
   }
 
   function updatePanelContent() {
-    const contentEl = document.getElementById('gov-helper-content');
-    const fieldIndicator = document.getElementById('gov-helper-field-indicator');
-    const fieldName = document.getElementById('gov-helper-field-name');
-    const footerText = document.getElementById('gov-helper-footer-text');
+    const content = document.getElementById('gov-helper-content');
+    const questionBox = document.getElementById('gov-helper-question');
+    const questionText = document.getElementById('gov-helper-question-text');
 
-    if (state.activeField) {
-      fieldIndicator.style.display = 'block';
-      fieldName.textContent = state.activeField;
+    // Show detected question
+    if (state.detectedQuestion) {
+      questionBox.style.display = 'block';
+      questionText.textContent = state.detectedQuestion;
     } else {
-      fieldIndicator.style.display = 'none';
+      questionBox.style.display = 'none';
     }
 
+    // Update content
     if (state.isLoading) {
-      contentEl.innerHTML = getLoadingHTML();
-      footerText.textContent = 'Analyzing question...';
+      content.innerHTML = getLoadingHTML();
     } else if (state.error) {
-      contentEl.innerHTML = getErrorHTML(state.error);
-      footerText.textContent = 'Error occurred';
+      content.innerHTML = getErrorHTML();
     } else if (state.response) {
-      contentEl.innerHTML = getResponseHTML(state.response, state.detectedOptions);
-      footerText.textContent = 'AI-powered guidance';
-      attachOptionListeners();
+      content.innerHTML = getResponseHTML();
+      attachListeners();
     } else {
-      contentEl.innerHTML = getIdleHTML();
-      footerText.textContent = 'Click any field for guidance';
+      content.innerHTML = getIdleHTML();
     }
   }
 
   function getLoadingHTML() {
     return `
       <div class="gov-helper-loading">
-        <div class="gov-helper-loading-indicator">
-          <svg class="gov-helper-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
-          <span>Analyzing question...</span>
-        </div>
-        <div class="gov-helper-shimmer-container">
-          <div class="gov-helper-shimmer"></div>
-          <div class="gov-helper-shimmer"></div>
-        </div>
+        <div class="gov-helper-loading-spinner"></div>
+        <span>Analyzing...</span>
       </div>
+      <div class="gov-helper-shimmer"></div>
+      <div class="gov-helper-shimmer"></div>
     `;
   }
 
-  function getErrorHTML(error) {
+  function getErrorHTML() {
     return `
       <div class="gov-helper-error">
-        <div class="gov-helper-error-icon">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-            <path d="M12 9v4"/><path d="M12 17h.01"/>
-          </svg>
-        </div>
-        <h4>Something went wrong</h4>
-        <p>${escapeHTML(error)}</p>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+        </svg>
+        <h4>Connection Error</h4>
+        <p>${state.error}</p>
       </div>
     `;
   }
 
   function getIdleHTML() {
     return `
-      <div class="gov-helper-idle-state">
+      <div class="gov-helper-idle">
         <div class="gov-helper-idle-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
@@ -534,30 +620,30 @@
           </svg>
         </div>
         <h4>Ready to Help!</h4>
-        <p>Click on any form field to get guidance on which option to select.</p>
+        <p>Click on any form field to get guidance.</p>
       </div>
     `;
   }
 
-  function getResponseHTML(response, detectedOptions) {
-    let html = '<div class="gov-helper-response">';
+  function getResponseHTML() {
+    let html = '';
     
-    // Show detected options if available
-    if (detectedOptions && detectedOptions.length > 0) {
+    // Show detected options
+    if (state.detectedOptions && state.detectedOptions.length > 0) {
       html += `
         <div class="gov-helper-card gov-helper-card-options">
           <div class="gov-helper-card-header">
-            <div class="gov-helper-card-icon gov-helper-icon-blue">
+            <span class="gov-helper-card-icon blue">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
               </svg>
-            </div>
-            <h4 class="gov-helper-card-title">Available Options</h4>
+            </span>
+            <span class="gov-helper-card-title">Available Options</span>
           </div>
-          <div class="gov-helper-detected-options">
-            ${detectedOptions.map(opt => `
-              <div class="gov-helper-detected-option ${opt.selected ? 'selected' : ''}">
-                <span class="gov-helper-option-bullet">${opt.selected ? '✓' : '○'}</span>
+          <div class="gov-helper-options-list">
+            ${state.detectedOptions.map(opt => `
+              <div class="gov-helper-option-item ${opt.selected ? 'selected' : ''}">
+                <span class="gov-helper-option-marker">${opt.selected ? '✓' : '○'}</span>
                 <span>${escapeHTML(opt.label)}</span>
               </div>
             `).join('')}
@@ -566,95 +652,93 @@
       `;
     }
     
-    // Show AI recommendation
-    if (response.needs_interaction && response.question_options && response.question_options.length > 0) {
+    // Show AI guidance
+    const r = state.response;
+    if (r.needs_interaction && r.question_options?.length > 0) {
       html += `
-        <div class="gov-helper-card gov-helper-card-question">
+        <div class="gov-helper-card gov-helper-card-ai">
           <div class="gov-helper-card-header">
-            <div class="gov-helper-card-icon gov-helper-icon-green">
+            <span class="gov-helper-card-icon green">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
               </svg>
-            </div>
-            <h4 class="gov-helper-card-title">Which applies to you?</h4>
+            </span>
+            <span class="gov-helper-card-title">Which applies to you?</span>
           </div>
-          <p class="gov-helper-hint">${escapeHTML(response.clarification_question || 'Select based on your situation:')}</p>
+          <p class="gov-helper-hint">${escapeHTML(r.clarification_question || '')}</p>
           <div class="gov-helper-ai-options">
-            ${response.question_options.map((opt, idx) => `
-              <button class="gov-helper-ai-option" data-idx="${idx}" data-recommendation="${escapeHTML(opt.recommendation || '')}">
-                <div class="gov-helper-ai-option-marker"></div>
+            ${r.question_options.map((opt, i) => `
+              <button class="gov-helper-ai-option" data-idx="${i}" data-rec="${escapeHTML(opt.recommendation || '')}">
+                <span class="gov-helper-ai-marker"></span>
                 <span>${escapeHTML(opt.label)}</span>
               </button>
             `).join('')}
           </div>
-          <div class="gov-helper-recommendation" id="gov-helper-recommendation" style="display: none;">
-            <div class="gov-helper-recommendation-icon">
+          <div class="gov-helper-recommendation" id="gov-rec" style="display:none;">
+            <span class="gov-helper-rec-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="m9 18 6-6-6-6"/>
+                <polyline points="9 18 15 12 9 6"/>
               </svg>
-            </div>
+            </span>
             <div>
-              <span class="gov-helper-recommendation-label">Select This Option</span>
-              <p class="gov-helper-recommendation-text" id="gov-helper-recommendation-text"></p>
+              <span class="gov-helper-rec-label">Select This</span>
+              <p class="gov-helper-rec-text" id="gov-rec-text"></p>
             </div>
           </div>
         </div>
       `;
-    } else {
-      // Simple advice
+    } else if (r.advice) {
       html += `
         <div class="gov-helper-card gov-helper-card-advice">
           <div class="gov-helper-card-header">
-            <div class="gov-helper-card-icon gov-helper-icon-green">
+            <span class="gov-helper-card-icon green">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
                 <path d="M9 18h6"/><path d="M10 22h4"/>
               </svg>
-            </div>
-            <h4 class="gov-helper-card-title">Recommendation</h4>
+            </span>
+            <span class="gov-helper-card-title">Recommendation</span>
           </div>
-          <p class="gov-helper-card-text">${escapeHTML(response.advice || 'Fill this field as per your documents.')}</p>
+          <p class="gov-helper-advice-text">${escapeHTML(r.advice)}</p>
         </div>
       `;
     }
     
     // Warning
-    if (response.warning) {
+    if (r.warning) {
       html += `
         <div class="gov-helper-card gov-helper-card-warning">
           <div class="gov-helper-card-header">
-            <div class="gov-helper-card-icon gov-helper-icon-orange">
+            <span class="gov-helper-card-icon orange">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
                 <path d="M12 9v4"/><path d="M12 17h.01"/>
               </svg>
-            </div>
-            <h4 class="gov-helper-card-title">Important</h4>
+            </span>
+            <span class="gov-helper-card-title">Important</span>
           </div>
-          <p class="gov-helper-card-text">${escapeHTML(response.warning)}</p>
+          <p class="gov-helper-warning-text">${escapeHTML(r.warning)}</p>
         </div>
       `;
     }
     
-    html += '</div>';
-    return html;
+    return html || getIdleHTML();
   }
 
-  function attachOptionListeners() {
-    const options = helperPanel.querySelectorAll('.gov-helper-ai-option');
-    options.forEach(option => {
-      option.addEventListener('click', () => {
+  function attachListeners() {
+    helperPanel.querySelectorAll('.gov-helper-ai-option').forEach(btn => {
+      btn.addEventListener('click', () => {
         // Remove previous selection
-        helperPanel.querySelectorAll('.gov-helper-ai-option').forEach(o => o.classList.remove('selected'));
-        option.classList.add('selected');
+        helperPanel.querySelectorAll('.gov-helper-ai-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
         
         // Show recommendation
-        const recommendation = option.dataset.recommendation;
-        const recEl = document.getElementById('gov-helper-recommendation');
-        const recText = document.getElementById('gov-helper-recommendation-text');
-        if (recommendation && recEl && recText) {
-          recText.textContent = recommendation;
-          recEl.style.display = 'flex';
+        const rec = btn.dataset.rec;
+        const recBox = document.getElementById('gov-rec');
+        const recText = document.getElementById('gov-rec-text');
+        if (rec && recBox && recText) {
+          recText.textContent = rec;
+          recBox.style.display = 'flex';
         }
       });
     });
@@ -667,5 +751,6 @@
     return div.innerHTML;
   }
 
+  // Initialize
   init();
 })();
