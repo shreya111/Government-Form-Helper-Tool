@@ -212,8 +212,6 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
 
   if (!isVisible) return null;
 
-  const isLocalResponse = localData && !response && !isLoading;
-
   return (
     <div className="fixed right-0 top-0 h-full w-[380px] md:w-[420px] bg-slate-900/95 backdrop-blur-xl z-50 border-l border-white/10 flex flex-col shadow-2xl" data-testid="ai-helper-panel">
       {/* Header */}
