@@ -571,24 +571,73 @@
           </svg>
         </button>
       </div>
-      <div class="gov-helper-question" id="gov-helper-question" style="display:none;">
-        <span class="gov-helper-question-label">Detected Question</span>
-        <p class="gov-helper-question-text" id="gov-helper-question-text"></p>
+      
+      <!-- Tab Switcher -->
+      <div class="gov-helper-tabs">
+        <button class="gov-helper-tab active" data-tab="field-help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>Field Help</span>
+        </button>
+        <button class="gov-helper-tab" data-tab="chat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>Chat</span>
+        </button>
       </div>
-      <div class="gov-helper-content" id="gov-helper-content">
-        <div class="gov-helper-idle">
-          <div class="gov-helper-idle-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
-              <path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
-            </svg>
+      
+      <!-- Field Help Tab Content -->
+      <div id="field-help-content" class="gov-helper-tab-content active">
+        <div class="gov-helper-question" id="gov-helper-question" style="display:none;">
+          <span class="gov-helper-question-label">Detected Question</span>
+          <p class="gov-helper-question-text" id="gov-helper-question-text"></p>
+        </div>
+        <div class="gov-helper-content" id="gov-helper-content">
+          <div class="gov-helper-idle">
+            <div class="gov-helper-idle-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
+                <path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
+              </svg>
+            </div>
+            <h4>Ready to Help!</h4>
+            <p>Click on any form field to get guidance.</p>
           </div>
-          <h4>Ready to Help!</h4>
-          <p>Click on any form field to get guidance.</p>
         </div>
       </div>
+      
+      <!-- Chat Tab Content -->
+      <div id="chat-content" class="gov-helper-tab-content">
+        <div class="gov-helper-chat-messages" id="chat-messages">
+          <div class="gov-helper-chat-welcome">
+            <div class="gov-helper-idle-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <h4>Ask Me Anything!</h4>
+            <p>I can help you with questions about this form, required documents, eligibility, or any confusing terms.</p>
+          </div>
+        </div>
+        <div class="gov-helper-chat-input-container">
+          <textarea 
+            id="chat-input" 
+            class="gov-helper-chat-input" 
+            placeholder="Ask about the form..."
+            rows="1"
+          ></textarea>
+          <button id="chat-send-btn" class="gov-helper-chat-send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
       <div class="gov-helper-footer">
-        <p>AI-powered guidance</p>
+        <p id="footer-text">AI-powered guidance</p>
       </div>
     `;
   }
