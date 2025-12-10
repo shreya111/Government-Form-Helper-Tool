@@ -141,15 +141,19 @@ async def get_form_help(request: FormHelpRequest):
         session_id = f"form-helper-{uuid.uuid4()}"
         chat = get_llm_chat(session_id)
         
-        user_prompt = f"""The user is filling an {request.form_context} and needs help with the field: '{request.field_label}' (field type: {request.field_type}).
+        # Build prompt with detected options if available
+        options_info = ""
+        if request.field_options:
+            options_info = f"\nDetected form options: {request.field_options}"
+        
+        user_prompt = f"""User needs help with this form question:
+Question/Field: "{request.field_label}"
+Field type: {request.field_type}{options_info}
+Form: {request.form_context}
 
-DECIDE: Does this field need interactive questions with options, or just simple advice?
-- SELECT/dropdown fields where choice depends on user situation → needs_interaction: true
-- Simple text fields like names, addresses, dates → needs_interaction: false
+Provide guidance on how to answer this question. If it's a Yes/No question or dropdown, ask a clarifying question to help them decide which option to select.
 
-Return a JSON object with needs_interaction boolean, and appropriate content.
-
-JSON response:"""
+Return JSON with needs_interaction, clarification_question, question_options (with label, value, recommendation), advice, and warning."""
         
         user_message = UserMessage(text=user_prompt)
         response = await chat.send_message(user_message)
