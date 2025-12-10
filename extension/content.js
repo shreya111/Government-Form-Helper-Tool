@@ -42,7 +42,55 @@
   function setup() {
     createHelperPanel();
     attachGlobalListeners();
-    console.log('Form Helper: Ready - click any form field');
+    loadChatHistory();
+    console.log('Form Helper: Ready - click any form field or use chat');
+  }
+
+  // Load chat history from storage
+  async function loadChatHistory() {
+    try {
+      const domain = window.location.hostname;
+      const result = await chrome.storage.local.get([`chat_${domain}`]);
+      if (result[`chat_${domain}`]) {
+        state.chatMessages = result[`chat_${domain}`];
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  }
+
+  // Save chat history to storage
+  async function saveChatHistory() {
+    try {
+      const domain = window.location.hostname;
+      await chrome.storage.local.set({ [`chat_${domain}`]: state.chatMessages });
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  }
+
+  // Extract page context for AI
+  function extractPageContext() {
+    // Get all visible text content
+    const bodyText = document.body.innerText || '';
+    
+    // Get form field data
+    const formData = {};
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      if (el.closest('#gov-helper-panel')) return; // Skip our own panel
+      const name = el.name || el.id;
+      const value = el.value;
+      if (name && value) {
+        formData[name] = value;
+      }
+    });
+    
+    return {
+      page_title: document.title,
+      page_url: window.location.href,
+      form_data: formData,
+      page_text: bodyText.substring(0, 8000) // Limit to 8000 chars
+    };
   }
 
   function attachGlobalListeners() {
