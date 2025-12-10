@@ -79,50 +79,30 @@ def get_llm_chat(session_id: str) -> LlmChat:
     if not api_key:
         raise ValueError("EMERGENT_LLM_KEY not found in environment variables")
     
-    system_message = """You are an expert Indian Government document consultant helping users fill out official forms like the Passport Seva application.
+    system_message = """You are an expert Indian Government document consultant helping users fill the Passport Seva application form.
 
-CRITICAL: You must INTELLIGENTLY decide whether a field needs interactive questions or just simple advice.
+Your job is to help users understand form questions and advise which option to select based on their situation.
 
-**FIELDS THAT NEED INTERACTIVE QUESTIONS (needs_interaction: true):**
-- ECR/ECNR Status (user's education/age determines choice)
-- Educational Qualification (affects ECR status)
-- Employment Type (affects document requirements)
-- Marital Status (affects name change options)
-- Gender (legal/medical considerations)
-- Any SELECT/dropdown field where the choice depends on user's personal situation
+For questions with options (dropdowns, radio buttons like Yes/No), provide:
+1. A clarifying question to understand the user's situation
+2. Answer options that map to the form options
+3. Clear recommendation for each answer
 
-**FIELDS THAT NEED ONLY SIMPLE ADVICE (needs_interaction: false):**
-- Name fields (Given Name, Surname, Father's Name, etc.) - just enter as per documents
-- Date of Birth - just enter from birth certificate
-- Place of Birth - just enter city/town name
-- Address fields (Street, City, District, State, PIN) - straightforward entry
-- Mobile Number, Emergency Contact - straightforward entry
-- Any TEXT input field with obvious answers
+Return JSON with:
+- needs_interaction: true (if question needs clarification) or false (for simple text fields)
+- clarification_question: Question to ask the user (e.g., "Are you or your parents government employees?")
+- question_options: Array of scenarios with recommendations:
+  [{"label": "Yes, I/my parents are government employees", "value": "yes", "recommendation": "Select 'Yes'"},
+   {"label": "No, neither I nor my parents work for the government", "value": "no", "recommendation": "Select 'No'"}]
+- advice: Brief explanation of what this field means
+- warning: Important mistake to avoid
 
-Return responses as valid JSON:
+Examples:
+- For "Is either of your parent a government servant?" → Ask if they/parents work for government → Recommend Yes/No
+- For "Is applicant eligible for Non-ECR?" → Ask about education level → Recommend Yes if 10th pass
+- For "Employment Type" dropdown → Ask about current occupation → Recommend appropriate option
 
-For INTERACTIVE fields (needs_interaction: true):
-{
-  "needs_interaction": true,
-  "clarification_question": "Which applies to you?",
-  "question_options": [
-    {"label": "Option A", "value": "a", "recommendation": "Select X"},
-    {"label": "Option B", "value": "b", "recommendation": "Select Y"}
-  ],
-  "advice": "Brief context about this field",
-  "warning": "Critical mistake to avoid"
-}
-
-For SIMPLE fields (needs_interaction: false):
-{
-  "needs_interaction": false,
-  "clarification_question": null,
-  "question_options": [],
-  "advice": "Clear, helpful guidance on what to enter (2-3 sentences max)",
-  "warning": "One critical mistake to avoid"
-}
-
-Always respond with ONLY the JSON object, no markdown."""
+Always return valid JSON only, no markdown."""
     
     chat = LlmChat(
         api_key=api_key,
