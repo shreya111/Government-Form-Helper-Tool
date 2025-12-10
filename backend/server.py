@@ -250,6 +250,110 @@ async def get_form_help_history(limit: int = 10):
     ).sort("timestamp", -1).to_list(limit)
     return history
 
+@api_router.post("/chat", response_model=ChatResponse)
+async def chat_with_ai(request: ChatRequest):
+    """Chat with AI assistant about the form with full page context."""
+    try:
+        # Create a unique session ID based on page URL
+        session_id = f"chat-{uuid.uuid4()}"
+        
+        # Build context-aware system message
+        system_message = f"""You are an expert assistant helping users fill out the Indian Passport Seva application form and other government forms.
+
+You have access to the current webpage context including:
+- Page Title: {request.page_context.page_title}
+- Page URL: {request.page_context.page_url}
+- Visible form fields and their current values
+- All instructions, terms, and help text on the page
+
+Your role:
+1. Answer questions about the form fields, requirements, and process
+2. Explain what documents are needed
+3. Help users understand confusing terminology
+4. Guide them through the application process step-by-step
+5. Clarify eligibility criteria and requirements
+6. Explain consequences of different choices
+
+Use the page context to give accurate, specific answers. Reference specific sections or fields from the page when relevant.
+Be concise, helpful, and friendly. If you don't see information on the page about their question, tell them clearly.
+
+Always prioritize accuracy and cite information from official sources when possible."""
+
+        # Create chat instance
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            raise ValueError("EMERGENT_LLM_KEY not found in environment variables")
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=session_id,
+            system_message=system_message
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        # Build context string
+        context_parts = []
+        if request.page_context.page_text:
+            # Truncate page text to first 8000 chars to avoid token limits
+            page_text_preview = request.page_context.page_text[:8000]
+            if len(request.page_context.page_text) > 8000:
+                page_text_preview += "... [truncated]"
+            context_parts.append(f"PAGE CONTENT:\n{page_text_preview}")
+        
+        if request.page_context.form_data:
+            form_fields = []
+            for field_name, field_value in request.page_context.form_data.items():
+                if field_value:
+                    form_fields.append(f"- {field_name}: {field_value}")
+            if form_fields:
+                context_parts.append(f"CURRENT FORM VALUES:\n" + "\n".join(form_fields))
+        
+        # Build user message with context and chat history
+        user_prompt_parts = []
+        
+        # Add conversation history
+        if request.chat_history and len(request.chat_history) > 0:
+            user_prompt_parts.append("CONVERSATION HISTORY:")
+            for msg in request.chat_history[-10:]:  # Last 10 messages
+                role_label = "User" if msg.role == "user" else "Assistant"
+                user_prompt_parts.append(f"{role_label}: {msg.content}")
+            user_prompt_parts.append("")
+        
+        # Add page context
+        if context_parts:
+            user_prompt_parts.append("WEBPAGE CONTEXT:")
+            user_prompt_parts.extend(context_parts)
+            user_prompt_parts.append("")
+        
+        # Add current user message
+        user_prompt_parts.append(f"USER QUESTION:\n{request.message}")
+        
+        full_prompt = "\n".join(user_prompt_parts)
+        
+        # Send to Gemini
+        user_message = UserMessage(text=full_prompt)
+        ai_response = await chat.send_message(user_message)
+        
+        # Store in database
+        chat_log = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "page_url": request.page_context.page_url,
+            "user_message": request.message,
+            "ai_response": ai_response,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        await db.chat_history.insert_one(chat_log)
+        
+        return ChatResponse(
+            response=ai_response.strip(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/extension/download")
 async def download_extension():
     """Download the Chrome extension as a zip file."""
