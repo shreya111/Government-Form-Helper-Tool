@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Government Form Helper",
-  "version": "1.0.0",
+  "name": "FormWise",
+  "version": "1.1.0",
   "description": "AI-powered assistant for filling Indian government forms like Passport Seva",
   "permissions": [
     "activeTab",
@@ -37,6 +37,6 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Government Form Helper"
+    "default_title": "FormWise"
   }
 }
