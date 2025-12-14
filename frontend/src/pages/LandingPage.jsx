@@ -48,14 +48,15 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-xl blur-sm opacity-50" />
-                <div className="relative bg-slate-800 p-2.5 rounded-xl border border-white/10">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
+              <div className="bg-gradient-to-br from-blue-500 to-emerald-500 p-2 rounded-xl shadow-lg shadow-blue-500/25">
+                <img 
+                  src="https://customer-assets.emergentagent.com/job_83598f23-6b56-44de-be74-03f8fb373d2d/artifacts/lk25akgm_Gemini_Generated_Image_ba6fpgba6fpgba6f-removebg-preview.png" 
+                  alt="FormWise Logo" 
+                  className="w-7 h-7 object-contain"
+                />
               </div>
               <div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Form Helper</h1>
+                <h1 className="text-lg font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">FormWise</h1>
                 <p className="text-[10px] text-white/50 uppercase tracking-wider">Chrome Extension</p>
               </div>
             </div>
