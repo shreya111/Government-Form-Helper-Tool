@@ -380,7 +380,7 @@ const LandingPage = () => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
                 >
-                  <span>Visit Passport Seva</span>
+                  <span>Visit Government Portal</span>
                   <ArrowRight className="w-4 h-4" />
                 </a>
               </div>
