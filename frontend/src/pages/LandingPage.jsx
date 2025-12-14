@@ -398,7 +398,7 @@ const LandingPage = () => {
                 <FileText className="w-5 h-5 text-white/60" />
               </div>
               <div>
-                <span className="font-semibold text-white/80">Government Form Helper</span>
+                <span className="font-semibold text-white/80">FormWise</span>
                 <p className="text-xs text-white/40">AI-Powered Chrome Extension</p>
               </div>
             </div>
