@@ -59,18 +59,14 @@
 }
 
 .gov-helper-logo {
-  background: linear-gradient(135deg, var(--gh-blue), var(--gh-green));
-  padding: 6px;
-  border-radius: 12px;
-  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .gov-helper-logo img {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
