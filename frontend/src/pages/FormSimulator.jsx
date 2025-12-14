@@ -220,7 +220,7 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
           <img 
             src="https://customer-assets.emergentagent.com/job_83598f23-6b56-44de-be74-03f8fb373d2d/artifacts/lk25akgm_Gemini_Generated_Image_ba6fpgba6fpgba6f-removebg-preview.png" 
             alt="FormWise Logo" 
-            className="w-8 h-8 object-contain"
+            className="w-11 h-11 object-contain"
           />
           <div>
             <h3 className="text-sm font-bold text-white">FormWise</h3>
