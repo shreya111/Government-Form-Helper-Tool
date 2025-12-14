@@ -312,7 +312,7 @@ const LandingPage = () => {
               },
               {
                 step: "02",
-                title: "Open Passport Seva",
+                title: "Visit Government Portal",
                 description: "Navigate to the form. The extension activates automatically.",
                 icon: Globe
               },
