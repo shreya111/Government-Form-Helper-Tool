@@ -51,7 +51,7 @@ const LandingPage = () => {
               <img 
                 src="https://customer-assets.emergentagent.com/job_83598f23-6b56-44de-be74-03f8fb373d2d/artifacts/lk25akgm_Gemini_Generated_Image_ba6fpgba6fpgba6f-removebg-preview.png" 
                 alt="FormWise Logo" 
-                className="w-9 h-9 object-contain"
+                className="w-12 h-12 object-contain"
               />
               <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">FormWise</h1>
