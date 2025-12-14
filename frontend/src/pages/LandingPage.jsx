@@ -95,7 +95,7 @@ const LandingPage = () => {
               </h1>
               
               <p className="text-lg text-white/60 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0">
-                Your AI assistant for Passport Seva and other Indian government forms. 
+                Your AI assistant for government forms - smart, fast, and reliable. 
                 Get instant guidance on every field - know exactly what to select and why.
               </p>
               
