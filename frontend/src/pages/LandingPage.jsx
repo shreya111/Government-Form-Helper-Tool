@@ -148,7 +148,7 @@ const LandingPage = () => {
                       <Bot className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white">Passport Quick Guide</h3>
+                      <h3 className="font-bold text-white">FormWise Guide</h3>
                       <p className="text-xs text-white/50">AI-Powered Assistance</p>
                     </div>
                   </div>
