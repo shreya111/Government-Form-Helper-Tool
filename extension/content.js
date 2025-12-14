@@ -729,13 +729,10 @@
       <div class="gov-helper-header">
         <div class="gov-helper-header-content">
           <div class="gov-helper-logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/>
-              <path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
-            </svg>
+            <img src="https://customer-assets.emergentagent.com/job_83598f23-6b56-44de-be74-03f8fb373d2d/artifacts/lk25akgm_Gemini_Generated_Image_ba6fpgba6fpgba6f-removebg-preview.png" alt="FormWise Logo" width="32" height="32" style="object-fit: contain;">
           </div>
           <div>
-            <h3 class="gov-helper-title">Form Quick Guide</h3>
+            <h3 class="gov-helper-title">FormWise</h3>
             <p class="gov-helper-subtitle">AI-Powered Assistance</p>
           </div>
         </div>
