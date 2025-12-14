@@ -19,7 +19,7 @@ AI-powered assistant for filling out Indian government forms, with a focus on th
 
 ## Installation
 
-1. Download the extension: `government-form-helper-extension.zip`
+1. Download the extension: `formwise-extension.zip`
 2. Extract the ZIP file to a folder
 3. Open Chrome and go to `chrome://extensions/`
 4. Enable "Developer mode" (toggle in top-right corner)
