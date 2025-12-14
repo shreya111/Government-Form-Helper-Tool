@@ -357,12 +357,12 @@ Always prioritize accuracy and cite information from official sources when possi
 @api_router.get("/extension/download")
 async def download_extension():
     """Download the Chrome extension as a zip file."""
-    extension_path = APP_DIR / "extension.zip"
+    extension_path = APP_DIR / "formwise-extension.zip"
     if not extension_path.exists():
         raise HTTPException(status_code=404, detail="Extension package not found")
     return FileResponse(
         path=str(extension_path),
-        filename="government-form-helper-extension.zip",
+        filename="formwise-extension.zip",
         media_type="application/zip"
     )
 
