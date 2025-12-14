@@ -217,11 +217,15 @@ const AIHelperPanel = ({ isVisible, isLoading, response, activeField, onClose, e
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-4 flex items-center justify-between border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-blue-500 to-emerald-500 p-2.5 rounded-xl">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="bg-gradient-to-br from-blue-500 to-emerald-500 p-2 rounded-xl">
+            <img 
+              src="https://customer-assets.emergentagent.com/job_83598f23-6b56-44de-be74-03f8fb373d2d/artifacts/lk25akgm_Gemini_Generated_Image_ba6fpgba6fpgba6f-removebg-preview.png" 
+              alt="FormWise Logo" 
+              className="w-6 h-6 object-contain"
+            />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Passport Quick Guide</h3>
+            <h3 className="text-sm font-bold text-white">FormWise</h3>
             <p className="text-xs text-white/50">AI-Powered Assistance</p>
           </div>
         </div>
