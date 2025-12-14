@@ -417,7 +417,7 @@ const LandingPage = () => {
           
           <div className="mt-8 pt-8 border-t border-white/5 text-center">
             <p className="text-sm text-white/30">
-              © 2024 Government Form Helper. Made with AI to simplify bureaucracy.
+              © 2024 FormWise. Made with AI to simplify bureaucracy.
             </p>
           </div>
         </div>
