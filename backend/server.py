@@ -135,7 +135,7 @@ Always return valid JSON only, no markdown."""
 # Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Government Form Helper API"}
+    return {"message": "FormWise API"}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
