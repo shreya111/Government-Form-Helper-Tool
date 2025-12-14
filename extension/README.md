@@ -1,4 +1,4 @@
-# Government Form Helper Chrome Extension
+# FormWise Chrome Extension
 
 AI-powered assistant for filling out Indian government forms, with a focus on the Passport Seva portal.
 
